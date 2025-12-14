@@ -81,6 +81,14 @@ export default class BapbFormPage {
                       <input type="date" id="deliveryDate" value="${this.documentData.deliveryDate || ''}" 
                              class="w-full px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold" required>
                   </div>
+                  <div>
+                    <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">CATATAN DOKUMEN</label>
+                    <textarea 
+                      id="notes" 
+                      class="w-full block px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm resize-y" 
+                      rows="4" 
+                      placeholder="CATATAN DOKUMEN...">${this.documentData.notes || ''}</textarea>
+                  </div>
               </div>
 
               <div class="border-t-2 border-slate-900 pt-8">
@@ -153,16 +161,16 @@ export default class BapbFormPage {
                   <div>
                       <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">KONDISI <span class="text-red-500">*</span></label>
                       <select class="item-condition w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm bg-white" required>
-                          <option value="BAIK" ${item.condition === 'BAIK' ? 'selected' : ''}>✓ BAIK</option>
-                          <option value="RUSAK" ${item.condition === 'RUSAK' ? 'selected' : ''}>✗ RUSAK</option>
-                          <option value="SEBAGIAN_RUSAK" ${item.condition === 'SEBAGIAN_RUSAK' ? 'selected' : ''}>⚠ SEBAGIAN RUSAK</option>
+                          <option value="baik" ${item.condition === 'baik' ? 'selected' : ''}>✓ BAIK</option>
+                          <option value="rusak" ${item.condition === 'rusak' ? 'selected' : ''}>✗ RUSAK</option>
+                          <option value="sebagian_rusak" ${item.condition === 'sebagian_rusak' ? 'selected' : ''}>⚠ SEBAGIAN RUSAK</option>
                       </select>
                   </div>
               </div>
               <div>
-                  <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">CATATAN</label>
+                  <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">CATATAN BARANG</label>
                   <textarea class="item-notes w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm resize-none" 
-                            rows="2" placeholder="CATATAN TAMBAHAN...">${item.notes || ''}</textarea>
+                            rows="2" placeholder="CATATAN BARANG...">${item.notes || ''}</textarea>
               </div>
           </div>
       </div>
@@ -182,7 +190,7 @@ export default class BapbFormPage {
         quantityOrdered: 0,
         quantityReceived: 0,
         unit: '',
-        condition: 'BAIK',
+        condition: 'baik',
         notes: ''
       });
       itemsContainer.innerHTML = this._renderItems();
@@ -208,7 +216,7 @@ export default class BapbFormPage {
   async _handleSubmit() {
     const submitBtn = document.querySelector('button[type="submit"]');
     const originalHTML = submitBtn.innerHTML;
-    
+
     try {
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> MENYIMPAN...';
@@ -217,23 +225,24 @@ export default class BapbFormPage {
       const formData = {
         orderNumber: document.getElementById('orderNumber').value.trim(),
         deliveryDate: document.getElementById('deliveryDate').value,
+        notes: document.getElementById('notes') ? document.getElementById('notes').value.trim() : '',
         items: [],
       };
 
       // Collect items
       document.querySelectorAll('.item-row').forEach(row => {
-        const itemName = row.querySelector('.item-name').value.trim();
-        const qtyOrdered = parseInt(row.querySelector('.item-qty-ordered').value) || 0;
-        const qtyReceived = parseInt(row.querySelector('.item-qty-received').value) || 0;
-        const unit = row.querySelector('.item-unit').value.trim();
-        const condition = row.querySelector('.item-condition').value;
-        const notes = row.querySelector('.item-notes').value.trim();
+        const itemName = row.querySelector('.item-name')?.value.trim() || '';
+        const quantityOrdered = parseInt(row.querySelector('.item-qty-ordered')?.value) || 0;
+        const quantityReceived = parseInt(row.querySelector('.item-qty-received')?.value) || 0;
+        const unit = row.querySelector('.item-unit')?.value.trim() || '';
+        const condition = row.querySelector('.item-condition')?.value || '';
+        const notes = row.querySelector('.item-notes')?.value.trim() || '';
 
-        if (itemName) { // Only add if itemName exists
+        if (itemName) {
           formData.items.push({
             itemName,
-            quantityOrdered: qtyOrdered,
-            quantityReceived: qtyReceived,
+            quantityOrdered,
+            quantityReceived,
             unit,
             condition,
             notes
@@ -242,65 +251,34 @@ export default class BapbFormPage {
       });
 
       // Validation
-      if (!formData.orderNumber) {
-        throw new Error('Nomor PO harus diisi');
-      }
+      if (!formData.orderNumber) throw new Error('Nomor PO harus diisi');
+      if (!formData.deliveryDate) throw new Error('Tanggal pengiriman harus diisi');
+      if (formData.items.length === 0) throw new Error('Minimal harus ada 1 barang dengan nama terisi');
 
-      if (!formData.deliveryDate) {
-        throw new Error('Tanggal pengiriman harus diisi');
-      }
-
-      if (formData.items.length === 0) {
-        throw new Error('Minimal harus ada 1 barang dengan nama terisi');
-      }
-
-      // Check if all items have required fields
-      const invalidItems = formData.items.filter(item => 
+      const invalidItems = formData.items.filter(item =>
         !item.itemName || !item.unit || item.quantityOrdered <= 0 || item.quantityReceived <= 0
       );
-
-      if (invalidItems.length > 0) {
-        throw new Error('Semua barang harus memiliki nama, satuan, dan quantity yang valid (>0)');
-      }
+      if (invalidItems.length > 0) throw new Error('Semua barang harus memiliki nama, satuan, dan quantity yang valid (>0)');
 
       console.log('📤 Sending payload:', JSON.stringify(formData, null, 2));
 
-      // Submit to API
-      let response;
-      if (this.isEdit) {
-        response = await API.put(API_ENDPOINT.UPDATE_BAPB(this.documentData.id), formData);
-      } else {
-        response = await API.post(API_ENDPOINT.CREATE_BAPB, formData);
-      }
+      // Submit ke API
+      const response = this.isEdit
+        ? await API.put(API_ENDPOINT.UPDATE_BAPB(this.documentData.id), formData)
+        : await API.post(API_ENDPOINT.CREATE_BAPB, formData);
 
-      console.log('✅ Response:', response);
-
-      // Success notification
       this._showSuccessNotification('BAPB berhasil disimpan!');
-      
-      // Redirect after short delay
-      setTimeout(() => {
-        window.location.hash = '#/bapb';
-      }, 1500);
+      setTimeout(() => window.location.hash = '#/bapb', 1500);
 
     } catch (error) {
       console.error('❌ Submit error:', error);
-      
-      // Parse error message
-      let errorMessage = 'Gagal menyimpan data';
-      
-      if (error.message) {
-        errorMessage = error.message;
-      }
-
-      // Show detailed error
-      this._showErrorNotification(errorMessage);
-
-      // Reset button
+      const message = error.message || 'Gagal menyimpan data';
+      this._showErrorNotification(message);
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalHTML;
     }
   }
+
 
   _showSuccessNotification(message) {
     const notification = document.createElement('div');
@@ -316,9 +294,9 @@ export default class BapbFormPage {
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
       notification.style.opacity = '0';
       notification.style.transition = 'opacity 0.3s';
@@ -343,9 +321,9 @@ export default class BapbFormPage {
         </button>
       </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
       notification.style.opacity = '0';
       notification.style.transition = 'opacity 0.3s';
