@@ -54,8 +54,9 @@ export default class RegisterPage {
                             <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">TIPE AKUN</label>
                             <select id="role" class="w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm bg-white uppercase">
                                 <option value="vendor">VENDOR</option>
-                                <option value="approver">APPROVER (INTERNAL)</option>
-                                <option value="verifikator">VERIFIKATOR</option>
+                                <option value="approver">APPROVER</option>
+                                <option value="pic_gudang">PIC GUDANG</option>
+                                <option value="admin">ADMIN</option>
                             </select>
                         </div>
                     </div>
@@ -80,7 +81,7 @@ export default class RegisterPage {
   async afterRender() {
     const sidebar = document.querySelector('aside');
     if (sidebar) sidebar.classList.add('hidden');
-    
+
     this._initRegisterForm();
   }
 
@@ -98,12 +99,13 @@ export default class RegisterPage {
 
       // Ambil data form
       const formData = {
-        name: document.getElementById('name').value,
         email: document.getElementById('email').value.toLowerCase(), // Email lowercase
         password: document.getElementById('password').value,
+        name: document.getElementById('name').value,
+        role: document.getElementById('role').value,
         phone: document.getElementById('phone').value,
-        company: document.getElementById('company').value,
-        role: document.getElementById('role').value
+        company: document.getElementById('company').value
+
       };
 
       // Loading state
@@ -120,17 +122,17 @@ export default class RegisterPage {
         msgContainer.classList.remove('hidden');
 
         setTimeout(() => {
-            window.location.hash = '#/login';
+          window.location.hash = '#/login';
         }, 1500);
 
       } catch (error) {
         console.error('Register Error:', error);
-        
+
         // Error
         msgContainer.className = 'mb-6 p-4 border-2 border-red-500 bg-red-100 text-red-800 text-xs font-bold uppercase';
         msgContainer.innerText = `GAGAL: ${error.message}`;
         msgContainer.classList.remove('hidden');
-        
+
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
       }

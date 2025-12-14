@@ -17,7 +17,7 @@ module.exports = merge(common, {
   },
   devServer: {
     static: path.resolve(__dirname, 'dist'),
-    port: 9000,
+    port: 3000,
     client: {
       overlay: {
         errors: true,
@@ -30,7 +30,7 @@ module.exports = merge(common, {
         context: ['/api', '/auth', '/users', '/dashboard', '/bapb', '/bapp', '/documents', '/po'],
         target: 'https://ba-digital-api.up.railway.app',
         changeOrigin: true,
-        secure: false,      
+        secure: false,
       }
     ]
     // -------------------------------------------

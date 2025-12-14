@@ -1,11 +1,11 @@
-// File: src/scripts/config.js
+// config.js
 const CONFIG = {
-  // Untuk development (dengan proxy webpack)
-  BASE_URL: '', 
-  
-  // Untuk production (setelah deploy)
+  API_MODE: 'real', // 'mock' | 'real'
+
   // BASE_URL: 'https://ba-digital-api.up.railway.app',
-  
+
+  BASE_URL: 'http://localhost:3000/api',
+
   STORAGE_KEY: {
     TOKEN: 'userToken',
     USER_DATA: 'userData',

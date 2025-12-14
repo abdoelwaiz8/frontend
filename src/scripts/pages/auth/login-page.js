@@ -11,7 +11,10 @@ export default class LoginPage {
                 <div class="w-24 h-24 bg-lime-400 flex items-center justify-center mb-8 border-4 border-white">
                     <i class="ph-bold ph-briefcase text-slate-900 text-5xl"></i>
                 </div>
-                <h2 class="heading-architectural text-6xl text-white mb-6">DIGITAL<br/>PROCUREMENT</h2>
+             <h2 class="heading-architectural text-6xl text-white mb-6 text-center">
+  DIGITAL<br />PROCUREMENT
+</h2>
+
             </div>
         </div>
 
@@ -33,9 +36,6 @@ export default class LoginPage {
                     <button type="submit" class="w-full bg-lime-400 hover:bg-lime-500 text-slate-900 font-black py-5 border-2 border-slate-900 hover-sharp uppercase tracking-tight text-sm transition-all">
                         MASUK KE PORTAL
                     </button>
-                    <button type="submit" class="w-full bg-lime-400 hover:bg-lime-500 text-slate-900 font-black py-5 border-2 border-slate-900 hover-sharp uppercase tracking-tight text-sm transition-all">
-                        MASUK KE PORTAL
-                    </button>
                     
                     <div class="mt-6 text-center">
                         <p class="text-xs font-bold text-slate-500">
@@ -53,7 +53,7 @@ export default class LoginPage {
   async afterRender() {
     const sidebar = document.querySelector('aside');
     if (sidebar) sidebar.classList.add('hidden');
-    
+
     // Inisialisasi logika form
     this._initLoginForm();
   }
@@ -86,41 +86,41 @@ export default class LoginPage {
 
         // 3. Tangkap Token Asli dari Response API
         // Struktur response biasanya: { status: 'success', data: { token: '...', user: {...} } }
-        const data = response.data || response; 
-        
-        if (data.token) {
-            // Simpan Token & Data User Asli
-            saveAuthData(data.token, data.user || { name: 'User', role: 'USER' });
-            
-            // Tampilkan sukses
-            msgContainer.className = 'mb-4 p-4 border-2 border-lime-500 bg-lime-100 text-lime-800 text-xs font-bold uppercase';
-            msgContainer.innerText = 'LOGIN BERHASIL! MENGALIHKAN...';
-            msgContainer.classList.remove('hidden');
+        const data = response.data || response;
 
-            // Redirect
-            setTimeout(() => {
-                window.location.hash = '#/';
-                window.location.reload();
-            }, 1000);
+        if (data.token) {
+          // Simpan Token & Data User Asli
+          saveAuthData(data.token, data.user || { name: 'User', role: 'USER' });
+
+          // Tampilkan sukses
+          msgContainer.className = 'mb-4 p-4 border-2 border-lime-500 bg-lime-100 text-lime-800 text-xs font-bold uppercase';
+          msgContainer.innerText = 'LOGIN BERHASIL! MENGALIHKAN...';
+          msgContainer.classList.remove('hidden');
+
+          // Redirect
+          setTimeout(() => {
+            window.location.hash = '#/';
+            window.location.reload();
+          }, 1000);
         } else {
-            throw new Error('Token tidak valid dari server.');
+          throw new Error('Token tidak valid dari server.');
         }
 
       } catch (error) {
         console.error('Login Error:', error);
-        
+
 
         let errorMessage = error.message;
 
         if (errorMessage.includes('Session expired') || errorMessage.includes('401')) {
-            errorMessage = 'EMAIL ATAU PASSWORD SALAH';
+          errorMessage = 'EMAIL ATAU PASSWORD SALAH';
         }
-        
+
         // Tampilkan Error
         msgContainer.className = 'mb-4 p-4 border-2 border-red-500 bg-red-100 text-red-800 text-xs font-bold uppercase';
         msgContainer.innerText = `GAGAL: ${errorMessage}`;
         msgContainer.classList.remove('hidden');
-        
+
         // Reset tombol
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;

@@ -4,19 +4,19 @@ import CONFIG from '../config';
 const ENDPOINTS = {
   // Auth
   LOGIN: `${CONFIG.BASE_URL}/auth/login`,
-  
+
   // Purchase Orders
   PO_DETAIL: (id) => `${CONFIG.BASE_URL}/po/${id}`,
   PO_LIST: `${CONFIG.BASE_URL}/po`,
-  
+
   // BAPB/BAPP Submission
   SUBMIT_BAPB: `${CONFIG.BASE_URL}/bapb`,
   SUBMIT_BAPP: `${CONFIG.BASE_URL}/bapp`,
-  
+
   // Document Approval
   DOCUMENT_DETAIL: (id) => `${CONFIG.BASE_URL}/documents/${id}`,
   APPROVE_DOCUMENT: (id) => `${CONFIG.BASE_URL}/documents/${id}/approve`,
-  
+
   // Download
   DOCUMENTS_COMPLETED: `${CONFIG.BASE_URL}/documents/completed`,
   DOWNLOAD_FILE: (id) => `${CONFIG.BASE_URL}/documents/${id}/download`,
@@ -49,11 +49,11 @@ export async function getPODetail(id) {
       method: 'GET',
       headers: getAuthHeaders()
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error fetching PO detail:', error);
@@ -69,11 +69,11 @@ export async function submitBAPB(data) {
       headers: getAuthHeaders(),
       body: JSON.stringify(data)
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error submitting BAPB:', error);
@@ -89,11 +89,11 @@ export async function submitBAPP(data) {
       headers: getAuthHeaders(),
       body: JSON.stringify(data)
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error submitting BAPP:', error);
@@ -108,11 +108,11 @@ export async function getDocumentDetail(id) {
       method: 'GET',
       headers: getAuthHeaders()
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error fetching document detail:', error);
@@ -131,11 +131,11 @@ export async function approveDocument(id, signatureBase64) {
         approvedAt: new Date().toISOString()
       })
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error approving document:', error);
@@ -150,11 +150,11 @@ export async function getCompletedDocuments() {
       method: 'GET',
       headers: getAuthHeaders()
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error fetching completed documents:', error);
@@ -169,14 +169,14 @@ export async function downloadDocument(id, filename) {
       method: 'GET',
       headers: getAuthHeadersForFile()
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status}`);
     }
-    
+
     // Get blob from response
     const blob = await response.blob();
-    
+
     // Create temporary download link
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -184,11 +184,11 @@ export async function downloadDocument(id, filename) {
     a.download = filename || `document-${id}.pdf`;
     document.body.appendChild(a);
     a.click();
-    
+
     // Cleanup
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
-    
+
     return { success: true };
   } catch (error) {
     console.error('Error downloading document:', error);

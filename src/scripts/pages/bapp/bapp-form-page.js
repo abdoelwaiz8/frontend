@@ -21,34 +21,39 @@ export default class BappFormPage {
 
   async afterRender() {
     try {
-      const url = parseActivePathname();
-      const docId = url.id;
-      
-      if (docId && docId !== 'create') {
-        this.isEdit = true;
-        this.documentData = await API.get(API_ENDPOINT.GET_BAPP_DETAIL(docId));
-      } else {
+      const { id } = parseActivePathname();
+
+      // CREATE PAGE
+      if (!id || id === 'create') {
         this.isEdit = false;
         this.documentData = {
           poNumber: '',
           vendorName: '',
           completionDate: new Date().toISOString().split('T')[0],
-          services: []
+          services: [],
         };
       }
-      
+      // EDIT / VIEW PAGE
+      else {
+        this.isEdit = true;
+        this.documentData = await API.get(
+          API_ENDPOINT.GET_BAPP_DETAIL(id)
+        );
+      }
+
       await this._renderForm();
-      
     } catch (error) {
       console.error('Error loading form:', error);
       this._showError('Gagal memuat form. ' + error.message);
     }
   }
 
+
+
   async _renderForm() {
     const container = document.getElementById('main-content');
     const title = this.isEdit ? 'EDIT BAPP' : 'BUAT BAPP BARU';
-    
+
     container.innerHTML = `
       <div class="flex flex-col md:flex-row justify-between items-start mb-8 gap-6">
           <div>
@@ -57,7 +62,7 @@ export default class BappFormPage {
                 BERITA ACARA PENERIMAAN PEKERJAAN/JASA
               </p>
           </div>
-          <a href="#/input/bapp" class="inline-flex items-center gap-2 text-slate-900 border-2 border-slate-900 px-6 py-4 font-black uppercase text-xs hover:bg-slate-900 hover:text-white transition-all">
+          <a href="#/bapp" class="inline-flex items-center gap-2 text-slate-900 border-2 border-slate-900 px-6 py-4 font-black uppercase text-xs hover:bg-slate-900 hover:text-white transition-all">
               <i class="ph-bold ph-arrow-left text-lg"></i> KEMBALI
           </a>
       </div>
@@ -112,7 +117,7 @@ export default class BappFormPage {
                   <button type="submit" class="flex-1 px-6 py-5 bg-lime-400 hover:bg-lime-500 border-2 border-slate-900 text-slate-900 font-black transition-all flex items-center justify-center gap-2 hover-sharp uppercase tracking-tight text-sm">
                       <i class="ph-bold ph-check-circle text-xl"></i> ${this.isEdit ? 'UPDATE BAPP' : 'SIMPAN BAPP'}
                   </button>
-                  <a href="#/input/bapp" class="px-6 py-5 bg-slate-100 hover:bg-slate-200 border-2 border-slate-900 text-slate-900 font-black transition-all flex items-center justify-center gap-2 uppercase tracking-tight text-sm">
+                  <a href="#/bapp" class="px-6 py-5 bg-slate-100 hover:bg-slate-200 border-2 border-slate-900 text-slate-900 font-black transition-all flex items-center justify-center gap-2 uppercase tracking-tight text-sm">
                       BATAL
                   </a>
               </div>
@@ -125,7 +130,7 @@ export default class BappFormPage {
 
   _renderServices() {
     const services = this.documentData.services || this.documentData.items || [];
-    
+
     if (services.length === 0) {
       return '<p class="text-center text-slate-500 font-bold py-8">BELUM ADA PEKERJAAN. KLIK TOMBOL "TAMBAH PEKERJAAN" UNTUK MENAMBAHKAN.</p>';
     }
@@ -204,14 +209,14 @@ export default class BappFormPage {
         completionDate: document.getElementById('completionDate').value,
         baNumber: document.getElementById('baNumber').value,
         notes: document.getElementById('notes').value,
-        services: []
+        services: [],
       };
 
       document.querySelectorAll('.service-row').forEach(row => {
         formData.services.push({
           name: row.querySelector('.service-name').value,
           volume: row.querySelector('.service-volume').value,
-          status: row.querySelector('.service-status').value
+          status: row.querySelector('.service-status').value,
         });
       });
 
@@ -226,24 +231,26 @@ export default class BappFormPage {
       }
 
       alert('BAPP berhasil disimpan!');
-      window.location.hash = '#/input/bapp';
+      window.location.hash = '#/bapp';
 
     } catch (error) {
       console.error('Submit error:', error);
       alert('Gagal menyimpan: ' + error.message);
-      
+
       const submitBtn = document.querySelector('button[type="submit"]');
       submitBtn.disabled = false;
-      submitBtn.innerHTML = `<i class="ph-bold ph-check-circle text-xl"></i> ${this.isEdit ? 'UPDATE BAPP' : 'SIMPAN BAPP'}`;
+      submitBtn.innerHTML = `<i class="ph-bold ph-check-circle text-xl"></i> ${this.isEdit ? 'UPDATE BAPP' : 'SIMPAN BAPP'
+        }`;
     }
   }
+
 
   _showError(msg) {
     document.getElementById('main-content').innerHTML = `
       <div class="flex items-center justify-center min-h-screen flex-col">
         <h2 class="text-2xl font-black text-red-500 mb-4">ERROR</h2>
         <p class="font-bold text-slate-700 mb-6">${msg}</p>
-        <a href="#/input/bapp" class="bg-slate-900 text-white px-6 py-3 font-bold border-2 border-slate-900">KEMBALI</a>
+        <a href="#/bapp" class="bg-slate-900 text-white px-6 py-3 font-bold border-2 border-slate-900">KEMBALI</a>
       </div>`;
   }
 }
