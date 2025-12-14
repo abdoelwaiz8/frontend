@@ -1,10 +1,9 @@
 // File: src/scripts/config.js
 const CONFIG = {
-  // PENTING: Ubah menjadi string kosong ('') saat mode development
-  // agar request masuk ke Proxy Webpack (localhost:9000/auth/login)
+  // Untuk development (dengan proxy webpack)
   BASE_URL: '', 
   
-  // Nanti jika sudah di-upload ke hosting, baru pakai URL asli:
+  // Untuk production (setelah deploy)
   // BASE_URL: 'https://ba-digital-api.up.railway.app',
   
   STORAGE_KEY: {
