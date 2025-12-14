@@ -4,6 +4,7 @@ function extractPathnameSegments(path) {
   return {
     resource: splitUrl[1] || null,
     id: splitUrl[2] || null,
+    action: splitUrl[3] || null,
   };
 }
 
@@ -14,7 +15,12 @@ function constructRouteFromSegments(pathSegments) {
     pathname = pathname.concat(`/${pathSegments.resource}`);
   }
 
-  if (pathSegments.id) {
+  // Handle /resource/create (bukan dynamic :id)
+  if (pathSegments.id === 'create' || pathSegments.id === 'edit' || pathSegments.id === 'view') {
+    pathname = pathname.concat(`/${pathSegments.id}`);
+  } 
+  // Handle /resource/:id (dynamic)
+  else if (pathSegments.id) {
     pathname = pathname.concat('/:id');
   }
 

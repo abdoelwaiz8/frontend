@@ -3,19 +3,19 @@ import DashboardPage from '../pages/dashboard/dashboard-page';
 import LoginPage from '../pages/auth/login-page';
 import RegisterPage from '../pages/auth/register-page';
 
-// BAPB Pages (Vendor)
+// BAPB Pages
 import BapbListPage from '../pages/bapb/bapb-list-page';
-import BapbFormPage from '../pages/bapb/bapb-page';
+import BapbFormPage from '../pages/bapb/bapb-form-page';
 
-// BAPP Pages (Vendor)
+// BAPP Pages
 import BappListPage from '../pages/bapp/bapp-list-page';
 import BappFormPage from '../pages/bapp/bapp-form-page';
 
-// Approval Pages (PIC Gudang & Approver)
+// Approval Pages
 import ApprovalListPage from '../pages/approval/approval-page';
 import ApprovalDetailPage from '../pages/approval/approval-detail-page';
 
-// Download Page (All Roles)
+// Download Page
 import DownloadPage from '../pages/document/download-page';
 
 
@@ -24,23 +24,21 @@ const routes = {
   '/login': new LoginPage(),
   '/register': new RegisterPage(),
 
-
+  // BAPB Routes 
+  '/bapb/create': new BapbFormPage(),    
+  '/bapb/:id': new BapbFormPage(),     
   '/bapb': new BapbListPage(),
-  '/bapb/create': new BapbFormPage(),
-  '/bapb/edit/:id': new BapbFormPage(),
-  '/bapb/view/:id': new BapbFormPage(),
 
-
-  '/bapp': new BappListPage(),
+  // BAPP Routes
   '/bapp/create': new BappFormPage(),
-  '/bapp/edit/:id': new BappFormPage(),
-  '/bapp/view/:id': new BappFormPage(),
+  '/bapp/:id': new BappFormPage(),
+  '/bapp': new BappListPage(),
 
-
-  '/approval': new ApprovalListPage(),
+  // Approval Routes
   '/approval/:id': new ApprovalDetailPage(),
+  '/approval': new ApprovalListPage(),
 
-
+  // Download Route
   '/download': new DownloadPage(),
 };
 

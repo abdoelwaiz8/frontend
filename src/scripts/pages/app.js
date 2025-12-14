@@ -16,10 +16,7 @@ class App {
       const target = event.target.closest('a[href="#/login"]');
       if (target) {
         event.preventDefault();
-
-        // Clear ALL session data using helper
         clearAuthData();
-
         window.location.hash = '#/login';
         window.location.reload();
       }
@@ -48,14 +45,12 @@ class App {
     const url = getActiveRoute();
     const authenticated = isAuthenticated();
 
-    // --- AUTH GUARD ---
-    // Izinkan akses ke /login DAN /register tanpa token
+    // AUTH GUARD
     if (!authenticated && url !== '/login' && url !== '/register') {
       window.location.hash = '#/login';
       return;
     }
 
-    // Jika sudah login, jangan biarkan masuk ke login/register lagi
     if (authenticated && (url === '/login' || url === '/register')) {
       window.location.hash = '#/';
       return;
@@ -67,7 +62,7 @@ class App {
       return;
     }
 
-    // Sembunyikan Sidebar hanya di halaman Login dan Register
+    // Hide Sidebar & Header on Login/Register
     const sidebar = document.querySelector('aside');
     const header = document.querySelector('header');
 
@@ -104,13 +99,12 @@ class App {
   }
 
   _updateUIByRole() {
-    // Get user data from helper instead of sessionStorage directly
     const userData = getUserData();
     if (!userData) return;
 
     const { role, name, jobTitle, initials } = userData;
 
-    // Default: Show all menus
+    // Get Menu Elements
     const navInput = document.getElementById('nav-input-group');
     const navApproval = document.getElementById('nav-approval');
 
@@ -123,23 +117,33 @@ class App {
     if (profileJob) profileJob.textContent = jobTitle || 'Staff';
     if (profileInitials) profileInitials.textContent = initials || 'U';
 
-    // Apply RBAC Rules
-    if (role === 'VENDOR') {
-      if (navApproval) navApproval.classList.add('hidden');
+    // RBAC Logic - Sesuaikan dengan API Role
+    // Default: Hide semua menu
+    if (navInput) navInput.classList.add('hidden');
+    if (navApproval) navApproval.classList.add('hidden');
+
+    // Role Mapping (case-insensitive untuk safety)
+    const normalizedRole = role?.toLowerCase();
+
+    if (normalizedRole === 'vendor') {
+      // Vendor: Tampilkan Input BAPB & BAPP
       if (navInput) navInput.classList.remove('hidden');
-
-    } else if (role === 'APPROVER') {
-      if (navInput) navInput.classList.add('hidden');
+      
+    } else if (normalizedRole === 'pic_gudang') {
+      // PIC Gudang: Tampilkan Approval (akan filter BAPB saja di list)
       if (navApproval) navApproval.classList.remove('hidden');
-
-    } else if (role === 'VERIFIKATOR') {
-      if (navInput) navInput.classList.add('hidden');
-      if (navApproval) navApproval.classList.add('hidden');
-
-    } else if (role === 'VERIFIKATOR') {
-      if (navInput) navInput.classList.add('hidden');
-      if (navApproval) navApproval.classList.add('hidden');
+      
+    } else if (normalizedRole === 'approver') {
+      // Approver: Tampilkan Approval (akan filter BAPP saja di list)
+      if (navApproval) navApproval.classList.remove('hidden');
+      
+    } else if (normalizedRole === 'admin') {
+      // Admin: Tampilkan semua menu
+      if (navInput) navInput.classList.remove('hidden');
+      if (navApproval) navApproval.classList.remove('hidden');
     }
+
+    // Download menu selalu tampil untuk semua role (tidak perlu logic)
 
     this._showRoleBadge(role);
   }
@@ -155,14 +159,22 @@ class App {
     badge.id = 'role-badge';
     badge.className = 'hidden lg:flex items-center gap-2 bg-slate-900 text-lime-400 px-4 py-2 border-2 border-slate-900 text-xs font-black tracking-tight uppercase';
 
+    // Icon mapping
+    const normalizedRole = role?.toLowerCase();
     let icon = 'ph-user';
-    if (role === 'VENDOR') icon = 'ph-storefront';
-    if (role === 'APPROVER') icon = 'ph-seal-check';
-    if (role === 'VERIFIKATOR') icon = 'ph-shield-check';
+    let displayRole = role?.toUpperCase() || 'USER';
+    
+    if (normalizedRole === 'vendor') icon = 'ph-storefront';
+    if (normalizedRole === 'approver') icon = 'ph-seal-check';
+    if (normalizedRole === 'pic_gudang') {
+      icon = 'ph-shield-check';
+      displayRole = 'PIC GUDANG';
+    }
+    if (normalizedRole === 'admin') icon = 'ph-crown';
 
     badge.innerHTML = `
       <i class="ph-bold ${icon}"></i>
-      <span>ROLE: ${role}</span>
+      <span>ROLE: ${displayRole}</span>
     `;
 
     const notificationBtn = header.querySelector('button[class*="ph-bell"]');
