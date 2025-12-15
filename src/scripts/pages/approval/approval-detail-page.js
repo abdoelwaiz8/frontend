@@ -1,14 +1,13 @@
 import { parseActivePathname } from '../../routes/url-parser';
-import { API, getUserData } from '../../utils/api-helper';
+import { API } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
 export default class ApprovalDetailPage {
   constructor() {
     this.documentData = null;
+    this.documentType = null; // 'BAPB' or 'BAPP'
     this.canvas = null;
     this.ctx = null;
-    this.currentUserRole = null;
-    this.canApprove = false;
   }
 
   async render() {
@@ -26,91 +25,69 @@ export default class ApprovalDetailPage {
     try {
       const url = parseActivePathname();
       const docId = url.id;
-      
+
       if (!docId) {
         this._showError('ID Dokumen tidak ditemukan');
         return;
       }
 
-      // Get user role untuk validasi
-      const userData = getUserData();
-      this.currentUserRole = userData?.role?.toLowerCase();
+      // Coba fetch dari BAPB dulu, kalau gagal coba BAPP
+      // Coba fetch dari BAPB dulu, kalau gagal coba BAPP
+      try {
+        const bapbRes = await API.get(API_ENDPOINT.GET_BAPB_DETAIL(docId));
+        this.documentData = bapbRes.data;
+        this.documentType = 'BAPB';
+      } catch (bapbError) {
+        console.log('Bukan BAPB, coba BAPP...');
+        try {
+          const bappRes = await API.get(API_ENDPOINT.GET_BAPP_DETAIL(docId));
+          this.documentData = bappRes.data;
+          this.documentType = 'BAPP';
+        } catch (bappError) {
+          throw new Error('Dokumen tidak ditemukan di BAPB maupun BAPP');
+        }
+      }
 
-      // Fetch document data using correct endpoint
-      this.documentData = await API.get(API_ENDPOINT.GET_DOCUMENT_DETAIL(docId));
-      
-      // ============================================================
-      // VALIDASI ROLE - SIAPA YANG BOLEH APPROVE?
-      // ============================================================
-      this.canApprove = this._checkApprovalPermission();
-      
+
       await this._renderWithData();
-      
+
     } catch (error) {
       console.error('Error loading document:', error);
       this._showError('Gagal memuat dokumen: ' + error.message);
     }
   }
 
-  _checkApprovalPermission() {
-    const docType = this.documentData.type; // 'BAPB' atau 'BAPP'
-    const docStatus = this.documentData.status;
-    const vendorId = this.documentData.vendorId;
-    const userData = getUserData();
-    const currentUserId = userData?.id;
-    const role = this.currentUserRole;
-
-    // Jika sudah approved, tidak ada yang bisa approve lagi
-    if (docStatus === 'APPROVED') {
-      return false;
-    }
-
-    // ❌ ADMIN tidak boleh approve sama sekali
-    if (role === 'admin') {
-      return false;
-    }
-
-    // ✅ VENDOR bisa approve dokumen mereka sendiri saja
-    if (role === 'vendor') {
-      return vendorId === currentUserId;
-    }
-
-    // ✅ PIC_GUDANG hanya bisa approve BAPB
-    if (role === 'pic_gudang') {
-      return docType === 'BAPB';
-    }
-
-    // ✅ APPROVER hanya bisa approve BAPP
-    if (role === 'approver') {
-      return docType === 'BAPP';
-    }
-
-    // Default: tidak boleh approve
-    return false;
-  }
-
   async _renderWithData() {
     const container = document.getElementById('main-content');
     const isApproved = this.documentData.status === 'APPROVED';
 
-    // Jika user tidak bisa approve, tampilkan view-only mode
-    const showSignaturePanel = this.canApprove && !isApproved;
+    // Mapping field dari response API
+    const docNumber = this.documentData.bapb_number || this.documentData.bapp_number ||
+      this.documentData.document_number || 'N/A';
+    const vendorName = this.documentData.vendor?.name || this.documentData.vendorName || 'N/A';
+    const poNumber = this.documentData.order_number || this.documentData.po_number || 'N/A';
+    const docDate = this.documentData.delivery_date || this.documentData.completion_date ||
+      this.documentData.created_at || new Date().toISOString();
 
     container.innerHTML = `
       <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
           <div>
               <h2 class="heading-architectural text-4xl text-slate-900 mb-3">APPROVAL DOKUMEN</h2>
               <p class="text-slate-600 text-xs font-bold uppercase tracking-widest border-l-4 border-lime-400 pl-4">
-                ${showSignaturePanel ? 'TANDA TANGANI DOKUMEN SECARA DIGITAL' : 'LIHAT DOKUMEN (READ ONLY)'}
+                TANDA TANGANI DOKUMEN SECARA DIGITAL
               </p>
               <div class="flex items-center gap-3 mt-4">
                   <span class="inline-flex items-center gap-2 bg-white border-2 border-slate-900 px-4 py-2 text-xs font-black tracking-tight">
                       <i class="ph-bold ph-file-text"></i>
-                      ${this.documentData.documentNumber || 'N/A'}
+                      ${docNumber}
                   </span>
                   <span class="inline-flex items-center gap-2 ${isApproved ? 'bg-lime-400' : 'bg-amber-100'} border-2 border-slate-900 px-4 py-2 text-xs font-black tracking-tight">
                       <i class="ph-bold ${isApproved ? 'ph-check-circle' : 'ph-clock'}"></i>
                       ${isApproved ? 'SUDAH DISETUJUI' : 'MENUNGGU APPROVAL'}
+                  </span>
+                  <span class="inline-flex items-center gap-2 bg-slate-900 text-lime-400 border-2 border-slate-900 px-4 py-2 text-xs font-black tracking-tight">
+                      <i class="ph-bold ${this.documentType === 'BAPB' ? 'ph-package' : 'ph-briefcase'}"></i>
+                      ${this.documentType}
                   </span>
               </div>
           </div>
@@ -120,10 +97,10 @@ export default class ApprovalDetailPage {
           </a>
       </div>
 
-      <div class="grid grid-cols-1 ${showSignaturePanel ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-8">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          <!-- Document Preview -->
-          <div class="${showSignaturePanel ? 'lg:col-span-2' : 'lg:col-span-1'} bg-slate-100 border-2 border-slate-900 flex items-center justify-center p-10 relative overflow-hidden">
+          <!-- Document Preview (Left - 2 columns) -->
+          <div class="lg:col-span-2 bg-slate-100 border-2 border-slate-900 flex items-center justify-center p-10 relative overflow-hidden">
               
               <div class="absolute inset-0" style="background-image: 
                   linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
@@ -139,19 +116,19 @@ export default class ApprovalDetailPage {
                       </div>
                       <h1 class="heading-architectural text-3xl text-slate-900 mb-2">BERITA ACARA</h1>
                       <p class="text-[10px] text-slate-600 font-black uppercase tracking-widest">
-                        ${this.documentData.type === 'BAPB' ? 'SERAH TERIMA BARANG' : 'SERAH TERIMA JASA'}
+                        ${this.documentType === 'BAPB' ? 'SERAH TERIMA BARANG' : 'SERAH TERIMA JASA'}
                       </p>
                   </div>
                   
                   <div class="flex-1 text-sm text-slate-700 leading-relaxed space-y-4 font-medium">
                       <p class="text-justify">
-                          Pada hari ini, <span class="font-black">${this._formatDate(this.documentData.date || this.documentData.createdAt)}</span>, 
+                          Pada hari ini, <span class="font-black">${this._formatDate(docDate)}</span>, 
                           telah dilakukan serah terima pekerjaan/barang dengan hasil 
                           <span class="font-black text-lime-600">BAIK DAN SESUAI</span> dengan spesifikasi yang telah ditentukan.
                       </p>
                       <p class="text-justify">
-                          PO Number: <span class="font-black">${this.documentData.poNumber || 'N/A'}</span><br/>
-                          Vendor: <span class="font-black">${this.documentData.vendorName || 'N/A'}</span>
+                          PO Number: <span class="font-black">${poNumber}</span><br/>
+                          Vendor: <span class="font-black">${vendorName}</span>
                       </p>
                       <p class="text-justify">
                           Dokumen ini sah dan ditandatangani secara digital dengan menggunakan teknologi enkripsi blockchain.
@@ -168,25 +145,22 @@ export default class ApprovalDetailPage {
                   <div class="mt-8 grid grid-cols-2 gap-6 pt-8 border-t-4 border-dashed border-slate-300">
                       <div class="text-center">
                           <div class="h-20 flex items-end justify-center mb-2">
-                              ${this.documentData.vendorSignature 
-                                ? `<img src="${this.documentData.vendorSignature}" class="w-full h-full object-contain" alt="Vendor Signature">`
-                                : `<div class="text-lime-600 font-black text-sm"><i class="ph-bold ph-check-circle text-3xl"></i></div>`
-                              }
+                              <div class="text-lime-600 font-black text-sm"><i class="ph-bold ph-check-circle text-3xl"></i></div>
                           </div>
                           <div class="border-t-2 border-slate-900 pt-2">
                               <p class="font-black text-slate-900 text-xs uppercase tracking-tight">PIHAK PERTAMA</p>
                               <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                ${this.documentData.vendorSignature ? 'SUDAH DITANDATANGANI' : 'MENUNGGU TTD'}
+                                SUDAH DITANDATANGANI
                               </p>
                           </div>
                       </div>
                       
                       <div class="text-center">
                           <div class="h-20 flex items-end justify-center mb-2 relative">
-                              ${isApproved 
-                                ? `<img src="${this.documentData.approverSignature}" class="w-full h-full object-contain" alt="Approver Signature">`
-                                : `<span id="signature-placeholder" class="text-slate-400 text-[10px] font-black uppercase tracking-widest">MENUNGGU TTD...</span>`
-                              }
+                              ${isApproved
+        ? `<div class="text-lime-600 font-black text-sm"><i class="ph-bold ph-check-circle text-3xl"></i></div>`
+        : `<span id="signature-placeholder" class="text-slate-400 text-[10px] font-black uppercase tracking-widest">MENUNGGU TTD...</span>`
+      }
                               <img id="signature-preview" class="absolute bottom-0 left-0 w-full h-full object-contain hidden" alt="Signature">
                           </div>
                           <div class="border-t-2 border-slate-900 pt-2">
@@ -200,55 +174,28 @@ export default class ApprovalDetailPage {
               </div>
           </div>
 
-          <!-- Signature Panel - HANYA TAMPIL JIKA USER BISA APPROVE -->
-          ${showSignaturePanel ? this._renderSignaturePanelIfAllowed() : this._renderNoPermissionPanel()}
+          <!-- Signature Panel -->
+          <div class="lg:col-span-1 bg-white border-2 border-slate-900 flex flex-col overflow-hidden">
+              
+              <div class="px-6 py-5 border-b-2 border-slate-900 bg-slate-50">
+                  <h3 class="heading-architectural text-slate-900 text-lg mb-2">PANEL TTD</h3>
+                  <p class="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
+                    ${isApproved ? 'DOKUMEN SUDAH DISETUJUI' : 'GAMBAR TANDA TANGAN DI AREA CANVAS'}
+                  </p>
+              </div>
+              
+              ${isApproved ? this._renderApprovedPanel() : this._renderSignaturePanel()}
+          </div>
       </div>
     `;
 
     this._updatePageTitle();
 
-    if (showSignaturePanel) {
+    if (!isApproved) {
       setTimeout(() => {
         this._initSignaturePad();
       }, 300);
     }
-  }
-
-  _renderSignaturePanelIfAllowed() {
-    return `
-      <div class="lg:col-span-1 bg-white border-2 border-slate-900 flex flex-col overflow-hidden">
-          
-          <div class="px-6 py-5 border-b-2 border-slate-900 bg-slate-50">
-              <h3 class="heading-architectural text-slate-900 text-lg mb-2">PANEL TTD</h3>
-              <p class="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
-                GAMBAR TANDA TANGAN DI AREA CANVAS
-              </p>
-          </div>
-          
-          ${this._renderSignaturePanel()}
-      </div>
-    `;
-  }
-
-  _renderNoPermissionPanel() {
-    if (this.documentData.status === 'APPROVED') {
-      return ''; // Dokumen sudah approved, tidak perlu panel
-    }
-
-    // Tampilkan info bahwa user tidak punya permission
-    return `
-      <div class="lg:col-span-1 bg-white border-2 border-slate-900 p-8 text-center">
-        <div class="w-16 h-16 bg-slate-300 border-2 border-slate-900 mx-auto mb-4 flex items-center justify-center">
-          <i class="ph-bold ph-lock text-slate-600 text-3xl"></i>
-        </div>
-        <h4 class="font-black text-slate-900 text-lg mb-2 uppercase">AKSES TERBATAS</h4>
-        <p class="text-sm text-slate-600 font-bold">
-          ${this.currentUserRole === 'admin' 
-            ? 'Admin tidak memiliki akses untuk melakukan approval dokumen.' 
-            : 'Anda tidak memiliki permission untuk approve dokumen ini.'}
-        </p>
-      </div>
-    `;
   }
 
   _renderSignaturePanel() {
@@ -287,12 +234,33 @@ export default class ApprovalDetailPage {
     `;
   }
 
+  _renderApprovedPanel() {
+    return `
+      <div class="p-6 flex-1 flex flex-col items-center justify-center">
+          <div class="w-24 h-24 bg-lime-400 border-2 border-slate-900 flex items-center justify-center mb-6">
+              <i class="ph-bold ph-check-circle text-slate-900 text-5xl"></i>
+          </div>
+          <h4 class="heading-architectural text-2xl text-slate-900 mb-3">DOKUMEN SUDAH DISETUJUI</h4>
+          <p class="text-xs text-slate-600 font-bold uppercase tracking-widest text-center mb-6">
+              DISETUJUI PADA TANGGAL:<br/>
+              <span class="text-slate-900">${this._formatDate(this.documentData.approved_at || this.documentData.updated_at)}</span>
+          </p>
+          
+          <a href="#/approval" 
+             class="w-full py-5 border-2 border-slate-900 bg-slate-900 text-white font-black text-center hover:bg-slate-800 transition-all flex items-center justify-center gap-2 uppercase tracking-tight text-sm">
+              <i class="ph-bold ph-arrow-left text-lg"></i>
+              KEMBALI
+          </a>
+      </div>
+    `;
+  }
+
   _initSignaturePad() {
     this.canvas = document.getElementById('signature-pad');
     const container = document.getElementById('signature-pad-container');
-    
+
     if (!this.canvas || !container) return;
-    
+
     this.ctx = this.canvas.getContext('2d');
     let isDrawing = false;
 
@@ -360,7 +328,7 @@ export default class ApprovalDetailPage {
   async _handleApproval() {
     try {
       const signatureImage = this.canvas.toDataURL("image/png");
-      
+
       if (this._isCanvasEmpty()) {
         alert('Mohon buat tanda tangan terlebih dahulu');
         return;
@@ -370,31 +338,36 @@ export default class ApprovalDetailPage {
       approveBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin text-xl"></i> PROCESSING...';
       approveBtn.disabled = true;
 
-      await API.post(API_ENDPOINT.APPROVE_DOCUMENT(this.documentData.id), {
+      // Gunakan endpoint yang sesuai dengan tipe dokumen
+      const approveEndpoint = this.documentType === 'BAPB'
+        ? API_ENDPOINT.APPROVE_BAPB(this.documentData.id)
+        : API_ENDPOINT.APPROVE_BAPP(this.documentData.id);
+
+      await API.post(approveEndpoint, {
         signature: signatureImage
       });
 
       const preview = document.getElementById('signature-preview');
       const placeholder = document.getElementById('signature-placeholder');
       const status = document.getElementById('signature-status');
-      
+
       preview.src = signatureImage;
       preview.classList.remove('hidden');
       if (placeholder) placeholder.classList.add('hidden');
       status.textContent = 'SUDAH DITANDATANGANI';
       status.classList.add('text-lime-600', 'font-black');
-      
+
       approveBtn.innerHTML = '<i class="ph-bold ph-check-circle text-xl"></i> SIGNED SUCCESSFULLY';
       approveBtn.classList.add('opacity-50', 'cursor-not-allowed');
-      
+
       document.getElementById('back-dashboard-btn').classList.remove('hidden');
-      
+
       alert('Dokumen berhasil disetujui!');
 
     } catch (error) {
       console.error('Approval error:', error);
       alert('Gagal menyimpan approval: ' + error.message);
-      
+
       const approveBtn = document.getElementById('approve-btn');
       approveBtn.innerHTML = '<i class="ph-bold ph-seal-check text-xl"></i> APPROVE & SIGN';
       approveBtn.disabled = false;
@@ -412,8 +385,8 @@ export default class ApprovalDetailPage {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     const days = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
-    const months = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 
-                    'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'];
+    const months = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI',
+      'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'];
     return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
   }
 

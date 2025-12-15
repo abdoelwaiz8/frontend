@@ -39,6 +39,8 @@ function isAuthenticated() {
  * FETCH WITH AUTH
  * =========================
  */
+
+
 async function fetchWithAuth(url, options = {}) {
   const token = getAuthToken();
 
@@ -48,13 +50,17 @@ async function fetchWithAuth(url, options = {}) {
     ...options.headers,
   };
 
+  // ✅ FIX UTAMA: tempel BASE_URL jika belum absolute
+  const finalUrl = url.startsWith('http')
+    ? url
+    : `${CONFIG.BASE_URL}${url}`;
+
   try {
-    const response = await fetch(url, {
+    const response = await fetch(finalUrl, {
       ...options,
       headers,
     });
 
-    // Unauthorized → force logout
     if (response.status === 401) {
       clearAuthData();
       window.location.hash = '#/login';

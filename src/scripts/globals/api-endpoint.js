@@ -23,15 +23,15 @@ const API_ENDPOINT = {
   CREATE_BAPP: `${CONFIG.BASE_URL}/bapp`,
   UPDATE_BAPP: (id) => `${CONFIG.BASE_URL}/bapp/${id}`,
 
-  // Approval Endpoints
-  GET_PENDING_APPROVALS: `${CONFIG.BASE_URL}/approvals/pending`,
-  APPROVE_DOCUMENT: (id) => `${CONFIG.BASE_URL}/approvals/${id}/approve`,
-  REJECT_DOCUMENT: (id) => `${CONFIG.BASE_URL}/approvals/${id}/reject`,
+  GET_BAPB_DETAIL_FOR_APPROVAL: (id) => `${CONFIG.BASE_URL}/bapb/${id}`,
+  GET_BAPP_DETAIL_FOR_APPROVAL: (id) => `${CONFIG.BASE_URL}/bapp/${id}`,
+  APPROVE_BAPB: (id) => `${CONFIG.BASE_URL}/bapb/${id}/approve`,
+  APPROVE_BAPP: (id) => `${CONFIG.BASE_URL}/bapp/${id}/approve`,
 
-  // Download Endpoints
-  GET_DOCUMENTS_ARCHIVE: `${CONFIG.BASE_URL}/documents/archive`,
+  // Download Endpoints (sesuai API docs)
+  GET_DOCUMENTS_ARCHIVE: `${CONFIG.BASE_URL}/documents/completed`,
   DOWNLOAD_DOCUMENT: (id) => `${CONFIG.BASE_URL}/documents/${id}/download`,
-  DOWNLOAD_ALL: `${CONFIG.BASE_URL}/documents/download-all`,
+  DOWNLOAD_ALL: `${CONFIG.BASE_URL}/documents/download/bulk`,
 
   // User Profile
   GET_USER_PROFILE: `${CONFIG.BASE_URL}/user/profile`,

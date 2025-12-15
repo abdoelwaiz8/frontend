@@ -19,7 +19,6 @@ import ApprovalDetailPage from '../pages/approval/approval-detail-page';
 // Download Page
 import DownloadPage from '../pages/document/download-page';
 
-
 const routes = {
   '/': new DashboardPage(),
   '/login': new LoginPage(),
@@ -39,8 +38,8 @@ const routes = {
   '/approval/:id': new ApprovalDetailPage(),
   '/approval': new ApprovalListPage(),
 
-  // Download Route
-  '/documents': new DownloadPage(),
+  // FIX: Download Route (ganti dari /documents ke /download)
+  '/download': new DownloadPage(),
 };
 
 export default routes;

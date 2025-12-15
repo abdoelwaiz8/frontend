@@ -117,9 +117,7 @@ class App {
     if (profileJob) profileJob.textContent = jobTitle || 'Staff';
     if (profileInitials) profileInitials.textContent = initials || 'U';
 
-    // ============================================================
-    // RBAC LOGIC - DIPERBAIKI
-    // ============================================================
+    // RBAC Logic - Sesuaikan dengan API Role
     // Default: Hide semua menu
     if (navInput) navInput.classList.add('hidden');
     if (navApproval) navApproval.classList.add('hidden');
@@ -128,25 +126,24 @@ class App {
     const normalizedRole = role?.toLowerCase();
 
     if (normalizedRole === 'vendor') {
-      // ✅ VENDOR: Bisa input dokumen DAN approve dokumen mereka sendiri
+      // Vendor: Tampilkan Input BAPB & BAPP
       if (navInput) navInput.classList.remove('hidden');
-      if (navApproval) navApproval.classList.remove('hidden');
       
     } else if (normalizedRole === 'pic_gudang') {
-      // PIC Gudang: Hanya approve BAPB
+      // PIC Gudang: Tampilkan Approval (akan filter BAPB saja di list)
       if (navApproval) navApproval.classList.remove('hidden');
       
     } else if (normalizedRole === 'approver') {
-      // Approver: Hanya approve BAPP
+      // Approver: Tampilkan Approval (akan filter BAPP saja di list)
       if (navApproval) navApproval.classList.remove('hidden');
       
     } else if (normalizedRole === 'admin') {
-      // ⚠️ ADMIN: Hanya bisa lihat/monitoring, TIDAK bisa approve
+      // Admin: Tampilkan semua menu
       if (navInput) navInput.classList.remove('hidden');
-      // navApproval tetap hidden - admin tidak boleh approve
+      if (navApproval) navApproval.classList.remove('hidden');
     }
 
-    // Download menu selalu tampil untuk semua role
+    // Download menu selalu tampil untuk semua role (tidak perlu logic)
 
     this._showRoleBadge(role);
   }
