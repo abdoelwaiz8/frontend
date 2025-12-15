@@ -1,9 +1,7 @@
 // config.js
 const CONFIG = {
-  API_MODE: 'real', // 'mock' | 'real'
-
+  API_MODE: 'real',
   BASE_URL: 'https://ba-digital-api.up.railway.app/api',
-
   // BASE_URL: 'http://localhost:3000/api',
 
   STORAGE_KEY: {
