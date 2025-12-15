@@ -6,6 +6,7 @@ import RegisterPage from '../pages/auth/register-page';
 // BAPB Pages
 import BapbListPage from '../pages/bapb/bapb-list-page';
 import BapbFormPage from '../pages/bapb/bapb-form-page';
+import BapbViewPage from '../pages/bapb/bapb-view-page';
 
 // BAPP Pages
 import BappListPage from '../pages/bapp/bapp-list-page';
@@ -25,8 +26,8 @@ const routes = {
   '/register': new RegisterPage(),
 
   // BAPB Routes 
-  '/bapb/create': new BapbFormPage(),    
-  '/bapb/:id': new BapbFormPage(),     
+  '/bapb/create': new BapbFormPage(),
+  '/bapb/:id': new BapbViewPage(),
   '/bapb': new BapbListPage(),
 
   // BAPP Routes
@@ -39,7 +40,7 @@ const routes = {
   '/approval': new ApprovalListPage(),
 
   // Download Route
-  '/download': new DownloadPage(),
+  '/documents': new DownloadPage(),
 };
 
 export default routes;
