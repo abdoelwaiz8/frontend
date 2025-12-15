@@ -41,10 +41,19 @@ export default class BappListPage {
       });
 
       const response = await API.get(`${API_ENDPOINT.GET_BAPP_LIST}?${params}`);
-      this.documents = Array.isArray(response) ? response : (response.data || response.documents || []);
-      
+      const dataList = response.data || [];
+
+      // Mapping API ke frontend
+      this.documents = dataList.map(doc => ({
+        id: doc.id,
+        documentNumber: doc.bapp_number || doc.order_number || 'N/A',
+        status: doc.status || 'DRAFT',
+        createdAt: doc.created_at,
+        vendorName: doc.vendor?.name || 'N/A',
+        servicesCount: doc.items?.length || 0, // Bisa juga doc.services?.length jika ada field services
+      }));
+
       await this._renderList();
-      
     } catch (error) {
       throw error;
     }
@@ -52,7 +61,7 @@ export default class BappListPage {
 
   async _renderList() {
     const container = document.getElementById('main-content');
-    
+
     const stats = {
       total: this.documents.length,
       draft: this.documents.filter(d => d.status === 'DRAFT').length,
@@ -141,10 +150,10 @@ export default class BappListPage {
       };
 
       const status = statusConfig[doc.status] || statusConfig['DRAFT'];
-      const date = doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('id-ID', { 
-        day: 'numeric', 
-        month: 'short', 
-        year: 'numeric' 
+      const date = doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
       }) : '-';
 
       return `
@@ -157,7 +166,7 @@ export default class BappListPage {
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-3 mb-2">
-                                <h3 class="text-lg font-black text-slate-900 truncate">${doc.documentNumber || doc.poNumber || 'N/A'}</h3>
+                                <h3 class="text-lg font-black text-slate-900 truncate">${doc.documentNumber}</h3>
                                 <span class="inline-flex items-center gap-1.5 bg-${status.color}-100 text-${status.color}-800 px-3 py-1.5 border-2 border-${status.color}-500 text-xs font-black uppercase">
                                     <i class="ph-fill ${status.icon} text-sm"></i> ${status.label}
                                 </span>
@@ -165,7 +174,7 @@ export default class BappListPage {
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                                 <div class="flex items-center gap-2">
                                     <i class="ph-fill ph-buildings text-slate-900"></i> 
-                                    <span class="font-bold text-slate-800">${doc.vendorName || 'N/A'}</span>
+                                    <span class="font-bold text-slate-800">${doc.vendorName}</span>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <i class="ph-fill ph-calendar text-slate-900"></i> 
@@ -173,7 +182,7 @@ export default class BappListPage {
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <i class="ph-fill ph-briefcase text-slate-900"></i> 
-                                    <span class="text-slate-700 font-semibold">${doc.services?.length || doc.items?.length || 0} PEKERJAAN</span>
+                                    <span class="text-slate-700 font-semibold">${doc.servicesCount} PEKERJAAN</span>
                                 </div>
                             </div>
                         </div>
@@ -198,7 +207,7 @@ export default class BappListPage {
       `;
     } else {
       return `
-        <a href="#/bapp/view/${doc.id}" 
+        <a href="#/bapp/${doc.id}" 
            class="inline-flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-900 px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs">
             <i class="ph-fill ph-eye"></i> LIHAT
         </a>
