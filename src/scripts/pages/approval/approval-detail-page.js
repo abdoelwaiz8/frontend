@@ -1,5 +1,5 @@
 import { parseActivePathname } from '../../routes/url-parser';
-import { API } from '../../utils/api-helper';
+import { API, getUserData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
 export default class ApprovalDetailPage {
@@ -7,6 +7,8 @@ export default class ApprovalDetailPage {
     this.documentData = null;
     this.canvas = null;
     this.ctx = null;
+    this.currentUserRole = null;
+    this.canApprove = false;
   }
 
   async render() {
@@ -30,8 +32,17 @@ export default class ApprovalDetailPage {
         return;
       }
 
+      // Get user role untuk validasi
+      const userData = getUserData();
+      this.currentUserRole = userData?.role?.toLowerCase();
+
       // Fetch document data using correct endpoint
       this.documentData = await API.get(API_ENDPOINT.GET_DOCUMENT_DETAIL(docId));
+      
+      // ============================================================
+      // VALIDASI ROLE - SIAPA YANG BOLEH APPROVE?
+      // ============================================================
+      this.canApprove = this._checkApprovalPermission();
       
       await this._renderWithData();
       
@@ -41,16 +52,56 @@ export default class ApprovalDetailPage {
     }
   }
 
+  _checkApprovalPermission() {
+    const docType = this.documentData.type; // 'BAPB' atau 'BAPP'
+    const docStatus = this.documentData.status;
+    const vendorId = this.documentData.vendorId;
+    const userData = getUserData();
+    const currentUserId = userData?.id;
+    const role = this.currentUserRole;
+
+    // Jika sudah approved, tidak ada yang bisa approve lagi
+    if (docStatus === 'APPROVED') {
+      return false;
+    }
+
+    // ❌ ADMIN tidak boleh approve sama sekali
+    if (role === 'admin') {
+      return false;
+    }
+
+    // ✅ VENDOR bisa approve dokumen mereka sendiri saja
+    if (role === 'vendor') {
+      return vendorId === currentUserId;
+    }
+
+    // ✅ PIC_GUDANG hanya bisa approve BAPB
+    if (role === 'pic_gudang') {
+      return docType === 'BAPB';
+    }
+
+    // ✅ APPROVER hanya bisa approve BAPP
+    if (role === 'approver') {
+      return docType === 'BAPP';
+    }
+
+    // Default: tidak boleh approve
+    return false;
+  }
+
   async _renderWithData() {
     const container = document.getElementById('main-content');
     const isApproved = this.documentData.status === 'APPROVED';
+
+    // Jika user tidak bisa approve, tampilkan view-only mode
+    const showSignaturePanel = this.canApprove && !isApproved;
 
     container.innerHTML = `
       <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
           <div>
               <h2 class="heading-architectural text-4xl text-slate-900 mb-3">APPROVAL DOKUMEN</h2>
               <p class="text-slate-600 text-xs font-bold uppercase tracking-widest border-l-4 border-lime-400 pl-4">
-                TANDA TANGANI DOKUMEN SECARA DIGITAL
+                ${showSignaturePanel ? 'TANDA TANGANI DOKUMEN SECARA DIGITAL' : 'LIHAT DOKUMEN (READ ONLY)'}
               </p>
               <div class="flex items-center gap-3 mt-4">
                   <span class="inline-flex items-center gap-2 bg-white border-2 border-slate-900 px-4 py-2 text-xs font-black tracking-tight">
@@ -69,10 +120,10 @@ export default class ApprovalDetailPage {
           </a>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="grid grid-cols-1 ${showSignaturePanel ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-8">
           
-          <!-- Document Preview (Left - 2 columns) -->
-          <div class="lg:col-span-2 bg-slate-100 border-2 border-slate-900 flex items-center justify-center p-10 relative overflow-hidden">
+          <!-- Document Preview -->
+          <div class="${showSignaturePanel ? 'lg:col-span-2' : 'lg:col-span-1'} bg-slate-100 border-2 border-slate-900 flex items-center justify-center p-10 relative overflow-hidden">
               
               <div class="absolute inset-0" style="background-image: 
                   linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
@@ -149,28 +200,55 @@ export default class ApprovalDetailPage {
               </div>
           </div>
 
-          <!-- Signature Panel -->
-          <div class="lg:col-span-1 bg-white border-2 border-slate-900 flex flex-col overflow-hidden">
-              
-              <div class="px-6 py-5 border-b-2 border-slate-900 bg-slate-50">
-                  <h3 class="heading-architectural text-slate-900 text-lg mb-2">PANEL TTD</h3>
-                  <p class="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
-                    ${isApproved ? 'DOKUMEN SUDAH DISETUJUI' : 'GAMBAR TANDA TANGAN DI AREA CANVAS'}
-                  </p>
-              </div>
-              
-              ${isApproved ? this._renderApprovedPanel() : this._renderSignaturePanel()}
-          </div>
+          <!-- Signature Panel - HANYA TAMPIL JIKA USER BISA APPROVE -->
+          ${showSignaturePanel ? this._renderSignaturePanelIfAllowed() : this._renderNoPermissionPanel()}
       </div>
     `;
 
     this._updatePageTitle();
 
-    if (!isApproved) {
+    if (showSignaturePanel) {
       setTimeout(() => {
         this._initSignaturePad();
       }, 300);
     }
+  }
+
+  _renderSignaturePanelIfAllowed() {
+    return `
+      <div class="lg:col-span-1 bg-white border-2 border-slate-900 flex flex-col overflow-hidden">
+          
+          <div class="px-6 py-5 border-b-2 border-slate-900 bg-slate-50">
+              <h3 class="heading-architectural text-slate-900 text-lg mb-2">PANEL TTD</h3>
+              <p class="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
+                GAMBAR TANDA TANGAN DI AREA CANVAS
+              </p>
+          </div>
+          
+          ${this._renderSignaturePanel()}
+      </div>
+    `;
+  }
+
+  _renderNoPermissionPanel() {
+    if (this.documentData.status === 'APPROVED') {
+      return ''; // Dokumen sudah approved, tidak perlu panel
+    }
+
+    // Tampilkan info bahwa user tidak punya permission
+    return `
+      <div class="lg:col-span-1 bg-white border-2 border-slate-900 p-8 text-center">
+        <div class="w-16 h-16 bg-slate-300 border-2 border-slate-900 mx-auto mb-4 flex items-center justify-center">
+          <i class="ph-bold ph-lock text-slate-600 text-3xl"></i>
+        </div>
+        <h4 class="font-black text-slate-900 text-lg mb-2 uppercase">AKSES TERBATAS</h4>
+        <p class="text-sm text-slate-600 font-bold">
+          ${this.currentUserRole === 'admin' 
+            ? 'Admin tidak memiliki akses untuk melakukan approval dokumen.' 
+            : 'Anda tidak memiliki permission untuk approve dokumen ini.'}
+        </p>
+      </div>
+    `;
   }
 
   _renderSignaturePanel() {
@@ -202,29 +280,6 @@ export default class ApprovalDetailPage {
           <a href="#/approval" 
              id="back-dashboard-btn" 
              class="hidden w-full py-5 border-2 border-slate-900 text-slate-900 font-black text-center hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-2 uppercase tracking-tight text-sm">
-              <i class="ph-bold ph-arrow-left text-lg"></i>
-              KEMBALI
-          </a>
-      </div>
-    `;
-  }
-
-  _renderApprovedPanel() {
-    return `
-      <div class="p-6 flex-1 flex flex-col items-center justify-center">
-          <div class="w-24 h-24 bg-lime-400 border-2 border-slate-900 flex items-center justify-center mb-6">
-              <i class="ph-bold ph-check-circle text-slate-900 text-5xl"></i>
-          </div>
-          <h4 class="heading-architectural text-2xl text-slate-900 mb-3">DOKUMEN SUDAH DISETUJUI</h4>
-          <p class="text-xs text-slate-600 font-bold uppercase tracking-widest text-center mb-6">
-              DISETUJUI OLEH:<br/>
-              <span class="text-slate-900">${this.documentData.approvedBy || 'N/A'}</span><br/>
-              PADA TANGGAL:<br/>
-              <span class="text-slate-900">${this._formatDate(this.documentData.approvedAt)}</span>
-          </p>
-          
-          <a href="#/approval" 
-             class="w-full py-5 border-2 border-slate-900 bg-slate-900 text-white font-black text-center hover:bg-slate-800 transition-all flex items-center justify-center gap-2 uppercase tracking-tight text-sm">
               <i class="ph-bold ph-arrow-left text-lg"></i>
               KEMBALI
           </a>
