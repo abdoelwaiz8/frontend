@@ -5,6 +5,7 @@ export default class ApprovalListPage {
   constructor() {
     this.documents = [];
     this.userRole = null;
+    this.vendorType = null;
   }
 
   async render() {
@@ -22,8 +23,12 @@ async afterRender() {
   try {
     const userData = getUserData();
     this.userRole = userData?.role?.toLowerCase();
+    this.vendorType = userData?.vendorType;
 
-    console.log('👤 User Role:', this.userRole); 
+    console.log('👤 User Info:', { 
+      role: this.userRole, 
+      vendorType: this.vendorType 
+    }); 
 
     // Ambil data dari BAPB & BAPP endpoint
     const [bapbResponse, bappResponse] = await Promise.all([
@@ -52,16 +57,15 @@ async afterRender() {
       document_number: doc.bapp_number || doc.document_number
     }));
 
-    const allDocuments = [...bapbList, ...bappList].filter(doc => 
-      doc.status === 'submitted' || doc.status === 'in_review'
-    );
+    // Gabungkan semua dokumen
+    const allDocuments = [...bapbList, ...bappList];
 
-    console.log('📋 All Pending Documents:', allDocuments); 
+    console.log('📋 All Documents:', allDocuments); 
 
-    // Filter berdasarkan role
+    // Filter berdasarkan role DAN status tanda tangan
     this.documents = this._filterDocumentsByRole(allDocuments);
 
-    console.log('✅ Filtered Documents:', this.documents); 
+    console.log('✅ Filtered Documents for Approval:', this.documents); 
 
     await this._renderList();
     this._updatePageTitle();
@@ -73,28 +77,63 @@ async afterRender() {
 
 _filterDocumentsByRole(documents) {
   console.log('🔍 Filtering for role:', this.userRole);
+  console.log('🔍 Vendor Type:', this.vendorType);
   
-  // Admin: lihat semua
+  // Admin: lihat semua yang belum complete
   if (this.userRole === 'admin') {
-    return documents;
-  }
-
-  // PIC Gudang: hanya BAPB
-  if (this.userRole === 'pic_gudang') {
-    const filtered = documents.filter(doc => doc.type === 'BAPB');
-    console.log('📦 PIC Gudang - BAPB only:', filtered);
+    const filtered = documents.filter(doc => {
+      // BAPB: belum kedua-duanya sign
+      if (doc.type === 'BAPB') {
+        return !doc.vendor_signed || !doc.pic_gudang_signed;
+      }
+      // BAPP: belum kedua-duanya sign
+      if (doc.type === 'BAPP') {
+        return !doc.vendor_signed || !doc.approver_signed;
+      }
+      return false;
+    });
+    console.log('📦 Admin - All incomplete docs:', filtered);
     return filtered;
   }
 
-  // Approver: hanya BAPP
+  // Vendor Barang: hanya BAPB yang belum vendor sign
+  if (this.userRole === 'vendor' && this.vendorType === 'VENDOR_BARANG') {
+    const filtered = documents.filter(doc => 
+      doc.type === 'BAPB' && !doc.vendor_signed
+    );
+    console.log('📦 Vendor Barang - BAPB belum vendor sign:', filtered);
+    return filtered;
+  }
+
+  // Vendor Jasa: hanya BAPP yang belum vendor sign
+  if (this.userRole === 'vendor' && this.vendorType === 'VENDOR_JASA') {
+    const filtered = documents.filter(doc => 
+      doc.type === 'BAPP' && !doc.vendor_signed
+    );
+    console.log('📦 Vendor Jasa - BAPP belum vendor sign:', filtered);
+    return filtered;
+  }
+
+  // PIC Gudang: hanya BAPB yang sudah vendor sign tapi belum PIC sign
+  if (this.userRole === 'pic_gudang') {
+    const filtered = documents.filter(doc => 
+      doc.type === 'BAPB' && doc.vendor_signed && !doc.pic_gudang_signed
+    );
+    console.log('📦 PIC Gudang - BAPB sudah vendor sign, belum PIC sign:', filtered);
+    return filtered;
+  }
+
+  // Approver: hanya BAPP yang sudah vendor sign tapi belum approver sign
   if (this.userRole === 'approver') {
-    const filtered = documents.filter(doc => doc.type === 'BAPP');
-    console.log('📦 Approver - BAPP only:', filtered);
+    const filtered = documents.filter(doc => 
+      doc.type === 'BAPP' && doc.vendor_signed && !doc.approver_signed
+    );
+    console.log('📦 Approver - BAPP sudah vendor sign, belum approver sign:', filtered);
     return filtered;
   }
 
   // Default: tidak ada akses
-  console.warn('⚠️ Unknown role, no documents shown');
+  console.warn('⚠️ Unknown role or no access, no documents shown');
   return [];
 }
 
@@ -104,7 +143,8 @@ _filterDocumentsByRole(documents) {
     const roleLabel = {
       'pic_gudang': 'PIC GUDANG',
       'approver': 'APPROVER',
-      'admin': 'ADMINISTRATOR'
+      'admin': 'ADMINISTRATOR',
+      'vendor': this.vendorType === 'VENDOR_BARANG' ? 'VENDOR BARANG' : 'VENDOR JASA'
     }[this.userRole] || 'USER';
 
     container.innerHTML = `
@@ -140,7 +180,7 @@ _filterDocumentsByRole(documents) {
         <div class="bg-white border-2 border-slate-900 p-16 text-center">
             <i class="ph-bold ph-check-circle text-6xl text-lime-400 mb-4"></i>
             <h3 class="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">TIDAK ADA DOKUMEN PENDING</h3>
-            <p class="text-slate-600 font-semibold mb-6">Semua dokumen sudah ditandatangani</p>
+            <p class="text-slate-600 font-semibold mb-6">Semua dokumen sudah ditandatangani atau tidak ada dokumen yang perlu Anda tandatangani saat ini</p>
             <a href="#/" class="inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-4 border-2 border-slate-900 font-black uppercase text-xs">
                 <i class="ph-bold ph-house"></i> KEMBALI KE DASHBOARD
             </a>
@@ -164,6 +204,22 @@ _filterDocumentsByRole(documents) {
 
       const typeColor = docType === 'BAPB' ? 'blue-500' : 'purple-500';
       const typeIcon = docType === 'BAPB' ? 'ph-package' : 'ph-briefcase';
+
+      // Status tanda tangan untuk info tambahan
+      let signatureStatus = '';
+      if (docType === 'BAPB') {
+        if (!doc.vendor_signed) {
+          signatureStatus = 'Menunggu TTD Vendor';
+        } else if (!doc.pic_gudang_signed) {
+          signatureStatus = 'Menunggu TTD PIC Gudang';
+        }
+      } else if (docType === 'BAPP') {
+        if (!doc.vendor_signed) {
+          signatureStatus = 'Menunggu TTD Vendor';
+        } else if (!doc.approver_signed) {
+          signatureStatus = 'Menunggu TTD Approver';
+        }
+      }
 
       return `
         <div class="group bg-white border-2 border-slate-900 hover-sharp transition-all overflow-hidden">
@@ -193,6 +249,12 @@ _filterDocumentsByRole(documents) {
                                     <i class="ph-fill ph-calendar text-slate-900"></i>
                                     <span class="text-slate-700 font-semibold">${formattedDate}</span>
                                 </div>
+                                ${signatureStatus ? `
+                                <div class="md:col-span-2 flex items-center gap-2">
+                                    <i class="ph-fill ph-info text-amber-600"></i>
+                                    <span class="text-amber-700 font-bold text-xs uppercase">${signatureStatus}</span>
+                                </div>
+                                ` : ''}
                             </div>
                         </div>
                     </div>

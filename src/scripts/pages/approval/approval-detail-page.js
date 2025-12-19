@@ -6,8 +6,8 @@ export default class ApprovalDetailPage {
   constructor() {
     this.documentData = null;
     this.documentType = null; // 'BAPB' or 'BAPP'
-    this.canvas = null;
-    this.ctx = null;
+    this.signatureFile = null;
+    this.signatureBase64 = null;
   }
 
   async render() {
@@ -32,7 +32,6 @@ export default class ApprovalDetailPage {
       }
 
       // Coba fetch dari BAPB dulu, kalau gagal coba BAPP
-      // Coba fetch dari BAPB dulu, kalau gagal coba BAPP
       try {
         const bapbRes = await API.get(API_ENDPOINT.GET_BAPB_DETAIL(docId));
         this.documentData = bapbRes.data;
@@ -47,7 +46,6 @@ export default class ApprovalDetailPage {
           throw new Error('Dokumen tidak ditemukan di BAPB maupun BAPP');
         }
       }
-
 
       await this._renderWithData();
 
@@ -145,28 +143,25 @@ export default class ApprovalDetailPage {
                   <div class="mt-8 grid grid-cols-2 gap-6 pt-8 border-t-4 border-dashed border-slate-300">
                       <div class="text-center">
                           <div class="h-20 flex items-end justify-center mb-2">
-                              <div class="text-lime-600 font-black text-sm"><i class="ph-bold ph-check-circle text-3xl"></i></div>
+                              ${this._renderFirstPartySignature()}
                           </div>
                           <div class="border-t-2 border-slate-900 pt-2">
-                              <p class="font-black text-slate-900 text-xs uppercase tracking-tight">PIHAK PERTAMA</p>
-                              <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                SUDAH DITANDATANGANI
+                              <p class="font-black text-slate-900 text-xs uppercase tracking-tight">${this._getFirstPartyLabel()}</p>
+                              <p class="text-[10px] ${this._isFirstPartySigned() ? 'text-lime-600 font-black' : 'text-slate-500 font-bold'} uppercase tracking-wider">
+                                ${this._isFirstPartySigned() ? 'SUDAH DITANDATANGANI' : 'BELUM DITANDATANGANI'}
                               </p>
                           </div>
                       </div>
                       
                       <div class="text-center">
                           <div class="h-20 flex items-end justify-center mb-2 relative">
-                              ${isApproved
-        ? `<div class="text-lime-600 font-black text-sm"><i class="ph-bold ph-check-circle text-3xl"></i></div>`
-        : `<span id="signature-placeholder" class="text-slate-400 text-[10px] font-black uppercase tracking-widest">MENUNGGU TTD...</span>`
-      }
-                              <img id="signature-preview" class="absolute bottom-0 left-0 w-full h-full object-contain hidden" alt="Signature">
+                              ${this._renderSecondPartySignature()}
+                              <img id="signature-preview-doc" class="absolute bottom-0 left-0 w-full h-full object-contain hidden" alt="Signature">
                           </div>
                           <div class="border-t-2 border-slate-900 pt-2">
-                              <p class="font-black text-slate-900 text-xs uppercase tracking-tight">PIHAK KEDUA</p>
-                              <p class="text-[10px] ${isApproved ? 'text-lime-600 font-black' : 'text-slate-500 font-bold'} uppercase tracking-wider" id="signature-status">
-                                ${isApproved ? 'SUDAH DITANDATANGANI' : 'BELUM DITANDATANGANI'}
+                              <p class="font-black text-slate-900 text-xs uppercase tracking-tight">${this._getSecondPartyLabel()}</p>
+                              <p class="text-[10px] ${this._isSecondPartySigned() ? 'text-lime-600 font-black' : 'text-slate-500 font-bold'} uppercase tracking-wider" id="signature-status">
+                                ${this._isSecondPartySigned() ? 'SUDAH DITANDATANGANI' : 'BELUM DITANDATANGANI'}
                               </p>
                           </div>
                       </div>
@@ -180,7 +175,7 @@ export default class ApprovalDetailPage {
               <div class="px-6 py-5 border-b-2 border-slate-900 bg-slate-50">
                   <h3 class="heading-architectural text-slate-900 text-lg mb-2">PANEL TTD</h3>
                   <p class="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
-                    ${isApproved ? 'DOKUMEN SUDAH DISETUJUI' : 'GAMBAR TANDA TANGAN DI AREA CANVAS'}
+                    ${isApproved ? 'DOKUMEN SUDAH DISETUJUI' : 'UPLOAD FOTO TANDA TANGAN'}
                   </p>
               </div>
               
@@ -193,7 +188,7 @@ export default class ApprovalDetailPage {
 
     if (!isApproved) {
       setTimeout(() => {
-        this._initSignaturePad();
+        this._initSignatureUpload();
       }, 300);
     }
   }
@@ -201,25 +196,57 @@ export default class ApprovalDetailPage {
   _renderSignaturePanel() {
     return `
       <div class="p-6 flex-1 flex flex-col">
-          <div class="flex-1 bg-slate-50 border-4 border-dashed border-slate-300 relative overflow-hidden group hover:border-lime-400 transition-all" 
-               id="signature-pad-container" 
-               style="min-height: 280px;">
-              <canvas id="signature-pad" class="block w-full h-full cursor-crosshair touch-none"></canvas>
-              <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                  <p class="text-slate-400 text-xs font-black uppercase tracking-widest">MULAI MENGGAMBAR...</p>
+          <!-- Upload Container -->
+          <div id="upload-container" class="flex-1">
+              <input type="file" id="signature-file" accept="image/jpeg,image/jpg,image/png" class="hidden">
+              
+              <button id="btn-upload-signature" 
+                      class="w-full h-64 border-4 border-dashed border-slate-300 bg-slate-50 hover:border-lime-400 hover:bg-lime-50 transition-all flex flex-col items-center justify-center gap-4 group">
+                  <div class="w-16 h-16 bg-slate-900 group-hover:bg-lime-400 border-2 border-slate-900 flex items-center justify-center transition-colors">
+                      <i class="ph-bold ph-upload text-lime-400 group-hover:text-slate-900 text-3xl transition-colors"></i>
+                  </div>
+                  <div class="text-center">
+                      <p class="font-black text-slate-900 text-sm uppercase tracking-tight mb-2">PILIH FOTO TTD</p>
+                      <p class="text-xs text-slate-500 font-bold">Format: JPG, PNG (Max 2MB)</p>
+                  </div>
+              </button>
+              
+              <!-- Preview Container (Hidden by default) -->
+              <div id="signature-preview-container" class="hidden">
+                  <div class="relative bg-slate-50 border-4 border-slate-900 p-4 mb-4">
+                      <img id="signature-preview" src="" alt="Preview TTD" class="w-full h-48 object-contain">
+                      <div class="absolute top-2 right-2">
+                          <button id="btn-clear-signature" 
+                                  class="w-10 h-10 bg-red-500 hover:bg-red-600 border-2 border-slate-900 text-white flex items-center justify-center transition-all">
+                              <i class="ph-bold ph-x text-xl"></i>
+                          </button>
+                      </div>
+                  </div>
+                  <div class="bg-lime-50 border-2 border-lime-500 p-4">
+                      <div class="flex items-start gap-3">
+                          <i class="ph-bold ph-check-circle text-lime-600 text-xl flex-shrink-0"></i>
+                          <div>
+                              <p class="text-xs font-black text-lime-800 uppercase tracking-tight mb-1">FOTO TTD SIAP</p>
+                              <p id="file-info" class="text-[10px] text-lime-700 font-bold"></p>
+                          </div>
+                      </div>
+                  </div>
               </div>
           </div>
-          
-          <button id="clear-sig" 
-                  class="mt-4 flex items-center justify-center gap-2 text-red-600 hover:text-white hover:bg-red-600 text-xs font-black border-2 border-red-600 px-4 py-3 transition-all uppercase tracking-tight">
-              <i class="ph-bold ph-trash text-lg"></i>
-              HAPUS & ULANGI
-          </button>
+
+          <!-- Loading Indicator -->
+          <div id="upload-loading" class="hidden flex-1 flex items-center justify-center">
+              <div class="text-center">
+                  <div class="w-16 h-16 border-4 border-lime-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p class="text-slate-900 font-black uppercase tracking-tight text-sm">MEMPROSES FOTO...</p>
+              </div>
+          </div>
       </div>
 
       <div class="p-6 border-t-2 border-slate-900 space-y-3">
           <button id="approve-btn" 
-                  class="w-full py-5 bg-lime-400 hover:bg-lime-500 text-slate-900 font-black border-2 border-slate-900 transition-all flex items-center justify-center gap-2 hover-sharp uppercase tracking-tight text-sm">
+                  class="w-full py-5 bg-lime-400 hover:bg-lime-500 text-slate-900 font-black border-2 border-slate-900 transition-all flex items-center justify-center gap-2 hover-sharp uppercase tracking-tight text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled>
               <i class="ph-bold ph-seal-check text-xl"></i>
               APPROVE & SIGN
           </button>
@@ -255,83 +282,150 @@ export default class ApprovalDetailPage {
     `;
   }
 
-  _initSignaturePad() {
-    this.canvas = document.getElementById('signature-pad');
-    const container = document.getElementById('signature-pad-container');
+  _initSignatureUpload() {
+    const fileInput = document.getElementById('signature-file');
+    const uploadBtn = document.getElementById('btn-upload-signature');
+    const uploadContainer = document.getElementById('upload-container');
+    const previewContainer = document.getElementById('signature-preview-container');
+    const previewImage = document.getElementById('signature-preview');
+    const clearBtn = document.getElementById('btn-clear-signature');
+    const approveBtn = document.getElementById('approve-btn');
+    const fileInfo = document.getElementById('file-info');
+    const uploadLoading = document.getElementById('upload-loading');
 
-    if (!this.canvas || !container) return;
-
-    this.ctx = this.canvas.getContext('2d');
-    let isDrawing = false;
-
-    const resizeCanvas = () => {
-      const rect = container.getBoundingClientRect();
-      this.canvas.width = rect.width;
-      this.canvas.height = rect.height;
-      this.ctx.lineWidth = 2.5;
-      this.ctx.lineCap = "round";
-      this.ctx.lineJoin = "round";
-      this.ctx.strokeStyle = "#0f172a";
-    };
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    const getPos = (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
-      return { x: clientX - rect.left, y: clientY - rect.top };
-    };
-
-    const startDrawing = (e) => {
-      isDrawing = true;
-      const pos = getPos(e);
-      this.ctx.beginPath();
-      this.ctx.moveTo(pos.x, pos.y);
-      if (e.type === 'touchstart') e.preventDefault();
-    };
-
-    const draw = (e) => {
-      if (!isDrawing) return;
-      const pos = getPos(e);
-      this.ctx.lineTo(pos.x, pos.y);
-      this.ctx.stroke();
-      if (e.type === 'touchmove') e.preventDefault();
-    };
-
-    const stopDrawing = () => {
-      isDrawing = false;
-      this.ctx.beginPath();
-    };
-
-    this.canvas.addEventListener('mousedown', startDrawing);
-    this.canvas.addEventListener('mousemove', draw);
-    this.canvas.addEventListener('mouseup', stopDrawing);
-    this.canvas.addEventListener('mouseout', stopDrawing);
-    this.canvas.addEventListener('touchstart', startDrawing, { passive: false });
-    this.canvas.addEventListener('touchmove', draw, { passive: false });
-    this.canvas.addEventListener('touchend', stopDrawing);
-
-    document.getElementById('clear-sig').addEventListener('click', () => {
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      document.getElementById('signature-preview').classList.add('hidden');
-      const placeholder = document.getElementById('signature-placeholder');
-      if (placeholder) placeholder.classList.remove('hidden');
-      document.getElementById('signature-status').textContent = 'BELUM DITANDATANGANI';
+    // Trigger file input when button clicked
+    uploadBtn.addEventListener('click', () => {
+      fileInput.click();
     });
 
-    document.getElementById('approve-btn').addEventListener('click', async () => {
+    // Handle file selection
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        // Show loading
+        uploadContainer.classList.add('hidden');
+        uploadLoading.classList.remove('hidden');
+
+        // Validate and process file
+        const base64 = await this._handleSignatureUpload(file);
+        
+        // Store data
+        this.signatureFile = file;
+        this.signatureBase64 = base64;
+
+        // Update preview
+        previewImage.src = base64;
+        
+        // Update file info
+        const fileSizeKB = (file.size / 1024).toFixed(2);
+        fileInfo.textContent = `${file.name} (${fileSizeKB} KB)`;
+
+        // Show preview, hide loading
+        uploadLoading.classList.add('hidden');
+        uploadContainer.classList.remove('hidden');
+        uploadBtn.classList.add('hidden');
+        previewContainer.classList.remove('hidden');
+
+        // Update document preview
+        const docPreview = document.getElementById('signature-preview-doc');
+        const placeholder = document.getElementById('signature-placeholder');
+        if (docPreview && placeholder) {
+          docPreview.src = base64;
+          docPreview.classList.remove('hidden');
+          placeholder.classList.add('hidden');
+        }
+
+        // Enable approve button
+        approveBtn.disabled = false;
+
+        console.log('✅ Signature uploaded successfully');
+
+      } catch (error) {
+        console.error('❌ Upload error:', error);
+        
+        // Hide loading
+        uploadLoading.classList.add('hidden');
+        uploadContainer.classList.remove('hidden');
+
+        // Show error notification
+        this._showErrorNotification(error.message);
+
+        // Reset file input
+        fileInput.value = '';
+      }
+    });
+
+    // Clear signature
+    clearBtn.addEventListener('click', () => {
+      // Reset data
+      this.signatureFile = null;
+      this.signatureBase64 = null;
+
+      // Reset UI
+      uploadBtn.classList.remove('hidden');
+      previewContainer.classList.add('hidden');
+      previewImage.src = '';
+      fileInput.value = '';
+
+      // Reset document preview
+      const docPreview = document.getElementById('signature-preview-doc');
+      const placeholder = document.getElementById('signature-placeholder');
+      if (docPreview && placeholder) {
+        docPreview.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+      }
+
+      // Disable approve button
+      approveBtn.disabled = true;
+
+      console.log('🗑️ Signature cleared');
+    });
+
+    // Handle approval
+    approveBtn.addEventListener('click', async () => {
       await this._handleApproval();
+    });
+  }
+
+  /**
+   * Handle signature file upload with validation
+   */
+  async _handleSignatureUpload(file) {
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      throw new Error('Format file tidak valid. Gunakan JPG atau PNG.');
+    }
+
+    // Validate file size (max 2MB)
+    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+    if (file.size > maxSize) {
+      throw new Error('Ukuran file terlalu besar. Maksimal 2MB.');
+    }
+
+    // Convert to base64
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = () => {
+        resolve(reader.result);
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('Gagal membaca file. Silakan coba lagi.'));
+      };
+      
+      reader.readAsDataURL(file);
     });
   }
 
   async _handleApproval() {
     try {
-      const signatureImage = this.canvas.toDataURL("image/png");
-
-      if (this._isCanvasEmpty()) {
-        alert('Mohon buat tanda tangan terlebih dahulu');
-        return;
+      // Check if signature exists
+      if (!this.signatureBase64) {
+        throw new Error('Mohon upload foto tanda tangan terlebih dahulu');
       }
 
       const approveBtn = document.getElementById('approve-btn');
@@ -344,41 +438,105 @@ export default class ApprovalDetailPage {
         : API_ENDPOINT.APPROVE_BAPP(this.documentData.id);
 
       await API.post(approveEndpoint, {
-        signature: signatureImage
+        signature: this.signatureBase64
       });
 
-      const preview = document.getElementById('signature-preview');
+      // Update preview on document
+      const preview = document.getElementById('signature-preview-doc');
       const placeholder = document.getElementById('signature-placeholder');
       const status = document.getElementById('signature-status');
 
-      preview.src = signatureImage;
-      preview.classList.remove('hidden');
-      if (placeholder) placeholder.classList.add('hidden');
-      status.textContent = 'SUDAH DITANDATANGANI';
-      status.classList.add('text-lime-600', 'font-black');
+      if (preview) {
+        preview.src = this.signatureBase64;
+        preview.classList.remove('hidden');
+      }
+      if (placeholder) {
+        placeholder.classList.add('hidden');
+      }
+      if (status) {
+        status.textContent = 'SUDAH DITANDATANGANI';
+        status.classList.remove('text-slate-500', 'font-bold');
+        status.classList.add('text-lime-600', 'font-black');
+      }
+
+      // Update signature container in document preview
+      const secondPartyContainer = document.querySelector('.text-center:last-child .h-20');
+      if (secondPartyContainer) {
+        secondPartyContainer.innerHTML = `<div class="text-lime-600 font-black text-sm"><i class="ph-bold ph-check-circle text-3xl"></i></div>`;
+      }
 
       approveBtn.innerHTML = '<i class="ph-bold ph-check-circle text-xl"></i> SIGNED SUCCESSFULLY';
       approveBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
       document.getElementById('back-dashboard-btn').classList.remove('hidden');
 
-      alert('Dokumen berhasil disetujui!');
+      this._showSuccessNotification('Dokumen berhasil disetujui!');
+
+      // Redirect after delay
+      setTimeout(() => {
+        window.location.hash = '#/approval';
+      }, 2000);
 
     } catch (error) {
       console.error('Approval error:', error);
-      alert('Gagal menyimpan approval: ' + error.message);
+      
+      this._showErrorNotification('Gagal menyimpan approval: ' + error.message);
 
       const approveBtn = document.getElementById('approve-btn');
       approveBtn.innerHTML = '<i class="ph-bold ph-seal-check text-xl"></i> APPROVE & SIGN';
-      approveBtn.disabled = false;
+      approveBtn.disabled = this.signatureBase64 ? false : true;
     }
   }
 
-  _isCanvasEmpty() {
-    const blank = document.createElement('canvas');
-    blank.width = this.canvas.width;
-    blank.height = this.canvas.height;
-    return this.canvas.toDataURL() === blank.toDataURL();
+  _showSuccessNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-8 right-8 bg-lime-400 border-2 border-slate-900 p-6 z-50 shadow-sharp max-w-md';
+    notification.innerHTML = `
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-slate-900 flex items-center justify-center">
+          <i class="ph-bold ph-check text-lime-400 text-2xl"></i>
+        </div>
+        <div>
+          <h4 class="font-black text-slate-900 mb-1 tracking-tight uppercase">BERHASIL!</h4>
+          <p class="text-xs text-slate-900 font-bold tracking-tight">${message}</p>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transition = 'opacity 0.3s';
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+
+  _showErrorNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-8 right-8 bg-red-500 border-2 border-slate-900 p-6 z-50 shadow-sharp max-w-md';
+    notification.innerHTML = `
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 bg-slate-900 flex items-center justify-center flex-shrink-0">
+          <i class="ph-bold ph-warning text-red-500 text-2xl"></i>
+        </div>
+        <div class="flex-1">
+          <h4 class="font-black text-white mb-1 tracking-tight uppercase">GAGAL!</h4>
+          <p class="text-xs text-white font-bold tracking-tight">${message}</p>
+        </div>
+        <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-slate-200">
+          <i class="ph-bold ph-x text-xl"></i>
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transition = 'opacity 0.3s';
+      setTimeout(() => notification.remove(), 300);
+    }, 5000);
   }
 
   _formatDate(dateString) {
@@ -413,6 +571,51 @@ export default class ApprovalDetailPage {
     const titleElement = document.getElementById('page-title');
     if (titleElement) {
       titleElement.innerHTML = 'APPROVAL DOKUMEN';
+    }
+  }
+
+  /**
+   * Helper methods untuk signature status
+   */
+  _isFirstPartySigned() {
+    // First Party = Vendor (selalu tanda tangan duluan)
+    return this.documentData.vendor_signed === true;
+  }
+
+  _isSecondPartySigned() {
+    // Second Party = PIC Gudang (untuk BAPB) atau Approver (untuk BAPP)
+    if (this.documentType === 'BAPB') {
+      return this.documentData.pic_gudang_signed === true;
+    } else {
+      return this.documentData.approver_signed === true;
+    }
+  }
+
+  _getFirstPartyLabel() {
+    return 'PIHAK PERTAMA (VENDOR)';
+  }
+
+  _getSecondPartyLabel() {
+    if (this.documentType === 'BAPB') {
+      return 'PIHAK KEDUA (PIC GUDANG)';
+    } else {
+      return 'PIHAK KEDUA (APPROVER)';
+    }
+  }
+
+  _renderFirstPartySignature() {
+    if (this._isFirstPartySigned()) {
+      return `<div class="text-lime-600 font-black text-sm"><i class="ph-bold ph-check-circle text-3xl"></i></div>`;
+    } else {
+      return `<span class="text-slate-400 text-[10px] font-black uppercase tracking-widest">BELUM TTD</span>`;
+    }
+  }
+
+  _renderSecondPartySignature() {
+    if (this._isSecondPartySigned()) {
+      return `<div class="text-lime-600 font-black text-sm"><i class="ph-bold ph-check-circle text-3xl"></i></div>`;
+    } else {
+      return `<span id="signature-placeholder" class="text-slate-400 text-[10px] font-black uppercase tracking-widest">BELUM TTD</span>`;
     }
   }
 }
