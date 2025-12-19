@@ -1,3 +1,4 @@
+// File: src/scripts/globals/api-endpoint.js (COMPLETE VERSION)
 import CONFIG from '../config';
 
 const API_ENDPOINT = {
@@ -71,7 +72,7 @@ const API_ENDPOINT = {
   // DOWNLOAD ENDPOINTS (Completed Documents)
   // ============================================
   GET_DOCUMENTS_ARCHIVE: `${CONFIG.BASE_URL}/documents/completed`,
-  DOWNLOAD_DOCUMENT: (id, type) => `${CONFIG.BASE_URL}/${type}/${id}/download`,
+  DOWNLOAD_DOCUMENT: (id) => `${CONFIG.BASE_URL}/documents/${id}/download`,
   DOWNLOAD_ALL: `${CONFIG.BASE_URL}/documents/download/bulk`,
 
   // ============================================
