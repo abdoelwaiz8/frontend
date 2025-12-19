@@ -1,6 +1,14 @@
+// File: src/scripts/pages/app.js
 import routes from '../routes/routes';
 import { getActiveRoute } from '../routes/url-parser';
 import { isAuthenticated, getUserData, clearAuthData } from '../utils/api-helper';
+import { 
+  canAccessBAPB, 
+  canAccessBAPP, 
+  canAccessApproval,
+  getUserDisplayInfo,
+  isValidUserData
+} from '../utils/rbac-helper';
 
 class App {
   #content = null;
@@ -16,6 +24,7 @@ class App {
       const target = event.target.closest('a[href="#/login"]');
       if (target) {
         event.preventDefault();
+        console.log('🚪 Logging out...');
         clearAuthData();
         window.location.hash = '#/login';
         window.location.reload();
@@ -100,13 +109,30 @@ class App {
 
   _updateUIByRole() {
     const userData = getUserData();
-    if (!userData) return;
+    
+    if (!userData) {
+      console.error('❌ RBAC: No userData found in sessionStorage');
+      return;
+    }
 
-    const { role, name, jobTitle, initials } = userData;
+    console.log('🔐 RBAC: Updating UI for user:', userData);
+
+    // Validate userData
+    if (!isValidUserData(userData)) {
+      console.error('❌ RBAC: Invalid userData structure');
+      this._showInvalidUserDataError();
+      return;
+    }
+
+    const { role, vendorType, name, jobTitle, initials } = userData;
+
+    console.log('👤 User Info:', { role, vendorType, name, jobTitle });
 
     // Get Menu Elements
-    const navInput = document.getElementById('nav-input-group');
+    const navInputGroup = document.getElementById('nav-input-group');
     const navApproval = document.getElementById('nav-approval');
+    const bapbLink = document.querySelector('a[href="#/bapb"]');
+    const bappLink = document.querySelector('a[href="#/bapp"]');
 
     // Update Profile Card
     const profileName = document.getElementById('profile-name');
@@ -117,60 +143,59 @@ class App {
     if (profileJob) profileJob.textContent = jobTitle || 'Staff';
     if (profileInitials) profileInitials.textContent = initials || 'U';
 
-    // RBAC Logic - Sesuaikan dengan API Role
-    // Default: Hide semua menu
-    if (navInput) navInput.classList.add('hidden');
+    // ===============================
+    // RBAC LOGIC - Menu Visibility
+    // ===============================
+    
+    console.log('🔍 Checking RBAC permissions...');
+
+    // Default: Hide all conditional menus
+    if (navInputGroup) navInputGroup.classList.add('hidden');
     if (navApproval) navApproval.classList.add('hidden');
+    if (bapbLink) bapbLink.parentElement?.classList.add('hidden');
+    if (bappLink) bappLink.parentElement?.classList.add('hidden');
 
-    // Role Mapping (case-insensitive untuk safety)
-    const normalizedRole = role?.toLowerCase();
+    // Check BAPB Access
+    if (canAccessBAPB(userData)) {
+      console.log('✅ BAPB access granted');
+      if (navInputGroup) navInputGroup.classList.remove('hidden');
+      if (bapbLink) bapbLink.parentElement?.classList.remove('hidden');
+    }
 
-    if (normalizedRole === 'vendor') {
-      // Vendor: Tampilkan Input BAPB & BAPP
-      if (navInput) navInput.classList.remove('hidden');
-      
-    } else if (normalizedRole === 'pic_gudang') {
-      // PIC Gudang: Tampilkan Approval (akan filter BAPB saja di list)
-      if (navApproval) navApproval.classList.remove('hidden');
-      
-    } else if (normalizedRole === 'approver') {
-      // Approver: Tampilkan Approval (akan filter BAPP saja di list)
-      if (navApproval) navApproval.classList.remove('hidden');
-      
-    } else if (normalizedRole === 'admin') {
-      // Admin: Tampilkan semua menu
-      if (navInput) navInput.classList.remove('hidden');
+    // Check BAPP Access
+    if (canAccessBAPP(userData)) {
+      console.log('✅ BAPP access granted');
+      if (navInputGroup) navInputGroup.classList.remove('hidden');
+      if (bappLink) bappLink.parentElement?.classList.remove('hidden');
+    }
+
+    // Check Approval Access
+    if (canAccessApproval(userData)) {
+      console.log('✅ Approval access granted');
       if (navApproval) navApproval.classList.remove('hidden');
     }
 
-    // Download menu selalu tampil untuk semua role (tidak perlu logic)
+    // Show Role Badge
+    this._showRoleBadge(userData);
 
-    this._showRoleBadge(role);
+    console.log('✅ RBAC: UI updated successfully');
   }
 
-  _showRoleBadge(role) {
+  _showRoleBadge(userData) {
     const header = document.querySelector('header');
     if (!header) return;
 
     const existingBadge = document.getElementById('role-badge');
     if (existingBadge) existingBadge.remove();
 
+    const displayInfo = getUserDisplayInfo(userData);
+    if (!displayInfo) return;
+
+    const { displayRole, icon, badgeColor } = displayInfo;
+
     const badge = document.createElement('div');
     badge.id = 'role-badge';
-    badge.className = 'hidden lg:flex items-center gap-2 bg-slate-900 text-lime-400 px-4 py-2 border-2 border-slate-900 text-xs font-black tracking-tight uppercase';
-
-    // Icon mapping
-    const normalizedRole = role?.toLowerCase();
-    let icon = 'ph-user';
-    let displayRole = role?.toUpperCase() || 'USER';
-    
-    if (normalizedRole === 'vendor') icon = 'ph-storefront';
-    if (normalizedRole === 'approver') icon = 'ph-seal-check';
-    if (normalizedRole === 'pic_gudang') {
-      icon = 'ph-shield-check';
-      displayRole = 'PIC GUDANG';
-    }
-    if (normalizedRole === 'admin') icon = 'ph-crown';
+    badge.className = `hidden lg:flex items-center gap-2 bg-slate-900 text-lime-400 px-4 py-2 border-2 border-slate-900 text-xs font-black tracking-tight uppercase`;
 
     badge.innerHTML = `
       <i class="ph-bold ${icon}"></i>
@@ -181,6 +206,33 @@ class App {
     if (notificationBtn) {
       notificationBtn.parentElement.insertBefore(badge, notificationBtn);
     }
+  }
+
+  _showInvalidUserDataError() {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-8 right-8 bg-red-500 border-2 border-slate-900 p-6 z-50 shadow-sharp max-w-md';
+    notification.innerHTML = `
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 bg-slate-900 flex items-center justify-center flex-shrink-0">
+          <i class="ph-bold ph-warning text-red-500 text-2xl"></i>
+        </div>
+        <div class="flex-1">
+          <h4 class="font-black text-white mb-1 tracking-tight uppercase">DATA TIDAK VALID</h4>
+          <p class="text-xs text-white font-bold tracking-tight">Silakan logout dan login kembali</p>
+        </div>
+        <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-slate-200">
+          <i class="ph-bold ph-x text-xl"></i>
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      clearAuthData();
+      window.location.hash = '#/login';
+      window.location.reload();
+    }, 3000);
   }
 }
 

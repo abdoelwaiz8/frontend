@@ -1,3 +1,4 @@
+// File: src/scripts/pages/auth/register-page.js
 import { API } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
@@ -61,6 +62,22 @@ export default class RegisterPage {
                         </div>
                     </div>
 
+                    <!-- VENDOR TYPE FIELD (Conditional) -->
+                    <div id="vendor-type-container" class="hidden">
+                        <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">
+                            TIPE VENDOR <span class="text-red-500">*</span>
+                        </label>
+                        <select id="vendorType" class="w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm bg-white uppercase">
+                            <option value="">-- PILIH TIPE VENDOR --</option>
+                            <option value="VENDOR_BARANG">VENDOR BARANG</option>
+                            <option value="VENDOR_JASA">VENDOR JASA</option>
+                        </select>
+                        <p class="text-xs text-slate-600 font-bold mt-2">
+                            <i class="ph-bold ph-info"></i> 
+                            Vendor Barang: Input BAPB | Vendor Jasa: Input BAPP
+                        </p>
+                    </div>
+
                     <div class="pt-4">
                         <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-4 border-2 border-slate-900 hover-lift uppercase tracking-tight text-sm transition-all mb-4">
                             DAFTAR SEKARANG
@@ -83,6 +100,41 @@ export default class RegisterPage {
     if (sidebar) sidebar.classList.add('hidden');
 
     this._initRegisterForm();
+    this._initRoleToggle();
+  }
+
+  /**
+   * Show/hide vendor type field based on role selection
+   */
+  _initRoleToggle() {
+    const roleSelect = document.getElementById('role');
+    const vendorTypeContainer = document.getElementById('vendor-type-container');
+    const vendorTypeSelect = document.getElementById('vendorType');
+
+    if (!roleSelect || !vendorTypeContainer) return;
+
+    const toggleVendorType = () => {
+      const selectedRole = roleSelect.value;
+      
+      console.log('🔄 Role changed to:', selectedRole);
+
+      if (selectedRole === 'vendor') {
+        vendorTypeContainer.classList.remove('hidden');
+        vendorTypeSelect.required = true;
+        console.log('✅ Vendor type field shown and required');
+      } else {
+        vendorTypeContainer.classList.add('hidden');
+        vendorTypeSelect.required = false;
+        vendorTypeSelect.value = ''; // Clear selection
+        console.log('❌ Vendor type field hidden and not required');
+      }
+    };
+
+    // Initial check
+    toggleVendorType();
+
+    // Listen for changes
+    roleSelect.addEventListener('change', toggleVendorType);
   }
 
   _initRegisterForm() {
@@ -97,16 +149,33 @@ export default class RegisterPage {
       const submitBtn = registerForm.querySelector('button[type="submit"]');
       const originalText = submitBtn.innerHTML;
 
-      // Ambil data form
+      const role = document.getElementById('role').value;
+      const vendorType = document.getElementById('vendorType').value;
+
+      // Validate vendor must have vendorType
+      if (role === 'vendor' && !vendorType) {
+        msgContainer.className = 'mb-6 p-4 border-2 border-red-500 bg-red-100 text-red-800 text-xs font-bold uppercase';
+        msgContainer.innerText = 'GAGAL: VENDOR HARUS MEMILIH TIPE (BARANG ATAU JASA)';
+        msgContainer.classList.remove('hidden');
+        return;
+      }
+
+      // Build form data
       const formData = {
-        email: document.getElementById('email').value.toLowerCase(), // Email lowercase
+        email: document.getElementById('email').value.toLowerCase(),
         password: document.getElementById('password').value,
         name: document.getElementById('name').value,
-        role: document.getElementById('role').value,
+        role: role,
         phone: document.getElementById('phone').value,
         company: document.getElementById('company').value
-
       };
+
+      // Add vendorType only if role is vendor
+      if (role === 'vendor') {
+        formData.vendorType = vendorType;
+      }
+
+      console.log('📤 Registration payload:', formData);
 
       // Loading state
       submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> MEMPROSES...';
@@ -114,9 +183,11 @@ export default class RegisterPage {
       msgContainer.classList.add('hidden');
 
       try {
-        await API.post(API_ENDPOINT.REGISTER, formData);
+        const response = await API.post(API_ENDPOINT.REGISTER, formData);
+        
+        console.log('✅ Registration successful:', response);
 
-        // Sukses
+        // Success
         msgContainer.className = 'mb-6 p-4 border-2 border-lime-500 bg-lime-100 text-lime-800 text-xs font-bold uppercase';
         msgContainer.innerHTML = '<i class="ph-bold ph-check-circle text-lg mr-1 align-middle"></i> REGISTRASI BERHASIL! MENGALIHKAN KE LOGIN...';
         msgContainer.classList.remove('hidden');
@@ -126,7 +197,7 @@ export default class RegisterPage {
         }, 1500);
 
       } catch (error) {
-        console.error('Register Error:', error);
+        console.error('❌ Register Error:', error);
 
         // Error
         msgContainer.className = 'mb-6 p-4 border-2 border-red-500 bg-red-100 text-red-800 text-xs font-bold uppercase';

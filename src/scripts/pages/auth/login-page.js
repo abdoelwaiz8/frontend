@@ -1,3 +1,4 @@
+// File: src/scripts/pages/auth/login-page.js
 import { API, saveAuthData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
@@ -11,10 +12,9 @@ export default class LoginPage {
                 <div class="w-24 h-24 bg-lime-400 flex items-center justify-center mb-8 border-4 border-white">
                     <i class="ph-bold ph-briefcase text-slate-900 text-5xl"></i>
                 </div>
-             <h2 class="heading-architectural text-6xl text-white mb-6 text-center">
-  DIGITAL<br />PROCUREMENT
-</h2>
-
+                <h2 class="heading-architectural text-6xl text-white mb-6 text-center">
+                  DIGITAL<br />PROCUREMENT
+                </h2>
             </div>
         </div>
 
@@ -54,7 +54,6 @@ export default class LoginPage {
     const sidebar = document.querySelector('aside');
     if (sidebar) sidebar.classList.add('hidden');
 
-    // Inisialisasi logika form
     this._initLoginForm();
   }
 
@@ -72,43 +71,73 @@ export default class LoginPage {
       const submitBtn = loginForm.querySelector('button[type="submit"]');
       const originalText = submitBtn.innerHTML;
 
-      // 1. Ubah UI ke status Loading
       submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> MENGHUBUNGKAN KE SERVER...';
       submitBtn.disabled = true;
       msgContainer.classList.add('hidden');
 
       try {
-        // 2. Request Login ke API ASLI
+        console.log('🔐 Attempting login for:', email);
+        
         const response = await API.post(API_ENDPOINT.LOGIN, {
           email: email,
           password: password
         });
 
-        // 3. Tangkap Token Asli dari Response API
-        // Struktur response biasanya: { status: 'success', data: { token: '...', user: {...} } }
+        console.log('📥 Login Response:', response);
+
+        // Extract data dari response
         const data = response.data || response;
 
-        if (data.token) {
-          // Simpan Token & Data User Asli
-          saveAuthData(data.token, data.user || { name: 'User', role: 'USER' });
-
-          // Tampilkan sukses
-          msgContainer.className = 'mb-4 p-4 border-2 border-lime-500 bg-lime-100 text-lime-800 text-xs font-bold uppercase';
-          msgContainer.innerText = 'LOGIN BERHASIL! MENGALIHKAN...';
-          msgContainer.classList.remove('hidden');
-
-          // Redirect
-          setTimeout(() => {
-            window.location.hash = '#/';
-            window.location.reload();
-          }, 1000);
-        } else {
-          throw new Error('Token tidak valid dari server.');
+        if (!data.token) {
+          throw new Error('Token tidak ditemukan dalam response');
         }
 
-      } catch (error) {
-        console.error('Login Error:', error);
+        // Extract user info
+        const user = data.user || {};
+        
+        console.log('👤 User Data:', user);
 
+        // Build userData object
+        const userData = {
+          name: user.name || email.split('@')[0],
+          email: user.email || email,
+          role: user.role || 'vendor',
+          vendorType: user.vendorType || user.vendor_type || null, // Support both formats
+          jobTitle: user.jobTitle || user.job_title || this._getDefaultJobTitle(user.role),
+          initials: this._getInitials(user.name || email),
+          company: user.company || null,
+          phone: user.phone || null
+        };
+
+        console.log('💾 Saving userData:', userData);
+
+        // Validate vendor has vendorType
+        if (userData.role === 'vendor' && !userData.vendorType) {
+          console.warn('⚠️ Vendor login without vendorType - setting default to VENDOR_BARANG');
+          userData.vendorType = 'VENDOR_BARANG'; // Default fallback
+        }
+
+        // Save to sessionStorage
+        saveAuthData(data.token, userData);
+
+        console.log('✅ Login successful - userData saved to sessionStorage');
+        console.log('🔑 Token:', data.token.substring(0, 20) + '...');
+        console.log('📋 Role:', userData.role);
+        console.log('🏷️ Vendor Type:', userData.vendorType);
+
+        // Show success
+        msgContainer.className = 'mb-4 p-4 border-2 border-lime-500 bg-lime-100 text-lime-800 text-xs font-bold uppercase';
+        msgContainer.innerText = 'LOGIN BERHASIL! MENGALIHKAN...';
+        msgContainer.classList.remove('hidden');
+
+        // Redirect
+        setTimeout(() => {
+          window.location.hash = '#/';
+          window.location.reload();
+        }, 1000);
+
+      } catch (error) {
+        console.error('❌ Login Error:', error);
 
         let errorMessage = error.message;
 
@@ -116,15 +145,40 @@ export default class LoginPage {
           errorMessage = 'EMAIL ATAU PASSWORD SALAH';
         }
 
-        // Tampilkan Error
         msgContainer.className = 'mb-4 p-4 border-2 border-red-500 bg-red-100 text-red-800 text-xs font-bold uppercase';
         msgContainer.innerText = `GAGAL: ${errorMessage}`;
         msgContainer.classList.remove('hidden');
 
-        // Reset tombol
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
       }
     });
+  }
+
+  /**
+   * Get default job title based on role
+   */
+  _getDefaultJobTitle(role) {
+    const titles = {
+      'vendor': 'Vendor',
+      'pic_gudang': 'PIC Gudang',
+      'approver': 'Approver',
+      'admin': 'Administrator'
+    };
+    return titles[role] || 'Staff';
+  }
+
+  /**
+   * Generate initials from name
+   */
+  _getInitials(name) {
+    if (!name) return 'U';
+    
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) {
+      return parts[0].substring(0, 2).toUpperCase();
+    }
+    
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 }
