@@ -1,4 +1,4 @@
-// File: src/scripts/utils/rbac-helper.js
+// File: src/scripts/utils/rbac-helper.js (COMPLETE VERSION)
 
 /**
  * RBAC Helper Functions

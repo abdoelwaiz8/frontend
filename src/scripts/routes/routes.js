@@ -20,8 +20,9 @@ import ApprovalDetailPage from '../pages/approval/approval-detail-page';
 // Download Page
 import DownloadPage from '../pages/document/download-page';
 
-// Payment Page (Admin Only)
-import PaymentPage from '../pages/payment/payment-page';
+// Payment Pages (Admin Only)
+import PaymentListPage from '../pages/payment/payment-list-page';
+import PaymentDetailPage from '../pages/payment/payment-detail-page';
 
 const routes = {
   '/': new DashboardPage(),
@@ -30,12 +31,12 @@ const routes = {
 
   // BAPB Routes (Vendor Barang + PIC Gudang)
   '/bapb/create': new BapbFormPage(),
-  '/bapb/:id': new BapbViewPage(), // Detail view with signature
+  '/bapb/:id': new BapbViewPage(),
   '/bapb': new BapbListPage(),
 
   // BAPP Routes (Vendor Jasa + Approver)
   '/bapp/create': new BappFormPage(),
-  '/bapp/:id': new BappViewPage(), // Detail view with signature
+  '/bapp/:id': new BappViewPage(),
   '/bapp': new BappListPage(),
 
   // Approval Routes (PIC Gudang & Approver)
@@ -45,8 +46,9 @@ const routes = {
   // Download Route (All roles - completed documents only)
   '/download': new DownloadPage(),
 
-  // Payment Route (Admin Only)
-  '/payment': new PaymentPage(),
+  // Payment Routes (Admin Only)
+  '/payment/:id': new PaymentDetailPage(),
+  '/payment': new PaymentListPage(),
 };
 
 export default routes;

@@ -1,4 +1,5 @@
-import { API } from '../../utils/api-helper';
+// File: src/scripts/pages/document/download-page.js (FIXED VERSION)
+import { API, getAuthToken } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
 export default class DownloadPage {
@@ -18,24 +19,24 @@ export default class DownloadPage {
     `;
   }
 
-async afterRender() {
-  try {
-    const response = await API.get(API_ENDPOINT.GET_DOCUMENTS_ARCHIVE);
-    
-    console.log('📥 Download Response:', response); 
-    
-    this.documents = response.data || response.documents || [];
-    
-    console.log('📄 Documents:', this.documents); 
-    
-    this.filteredDocuments = [...this.documents];
-    
-    await this._renderWithData();
-  } catch (error) {
-    console.error('Error loading documents:', error);
-    this._showError('Gagal memuat daftar dokumen: ' + error.message);
+  async afterRender() {
+    try {
+      const response = await API.get(API_ENDPOINT.GET_DOCUMENTS_ARCHIVE);
+      
+      console.log('📥 Download Response:', response); 
+      
+      this.documents = response.data || response.documents || [];
+      
+      console.log('📄 Documents:', this.documents); 
+      
+      this.filteredDocuments = [...this.documents];
+      
+      await this._renderWithData();
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      this._showError('Gagal memuat daftar dokumen: ' + error.message);
+    }
   }
-}
 
   async _renderWithData() {
     const container = document.getElementById('main-content');
@@ -59,6 +60,7 @@ async afterRender() {
     `;
 
     this._updatePageTitle();
+    this._initDownloadHandlers();
   }
 
   _renderDocuments() {
@@ -86,6 +88,9 @@ async afterRender() {
           })
         : '-';
 
+      // Generate filename
+      const filename = `${docType}_${docNumber.replace(/\//g, '-')}.pdf`;
+
       return `
         <div class="group bg-white border-2 border-slate-900 hover-sharp transition-all overflow-hidden" data-doc-id="${doc.id}">
             <div class="p-6 flex items-start gap-4">
@@ -109,8 +114,11 @@ async afterRender() {
                         </div>
                     </div>
                 </div>
-                <button onclick="window.downloadHandler('${doc.id}', '${docNumber}.pdf')" 
-                        class="download-btn w-12 h-12 bg-lime-400 border-2 border-slate-900 hover:bg-slate-900 hover:text-lime-400 transition-all flex items-center justify-center flex-shrink-0">
+                <button 
+                    class="download-btn w-12 h-12 bg-lime-400 border-2 border-slate-900 hover:bg-slate-900 hover:text-lime-400 transition-all flex items-center justify-center flex-shrink-0"
+                    data-doc-id="${doc.id}"
+                    data-filename="${filename}"
+                    data-doc-type="${docType}">
                     <i class="ph-bold ph-download-simple text-xl"></i>
                 </button>
             </div>
@@ -119,70 +127,198 @@ async afterRender() {
     }).join('');
   }
 
-  async _handleDownload(docId, filename) {
-      try {
-        const btn = document.querySelector(`[data-doc-id="${docId}"] .download-btn`);
-        if (btn) {
-          btn.disabled = true;
-          btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i>';
-        }
+  _initDownloadHandlers() {
+    // Event delegation approach
+    const documentsGrid = document.getElementById('documents-grid');
+    
+    if (documentsGrid) {
+      documentsGrid.addEventListener('click', (e) => {
+        const downloadBtn = e.target.closest('.download-btn');
         
-
-        const downloadUrl = `${CONFIG.BASE_URL}/documents/${docId}/download`;
-        
-        const response = await fetch(downloadUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${sessionStorage.getItem('userToken')}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        // Success feedback
-        if (btn) {
-          btn.innerHTML = '<i class="ph-bold ph-check text-xl"></i>';
-          btn.classList.remove('bg-lime-400');
-          btn.classList.add('bg-green-500', 'text-white');
+        if (downloadBtn) {
+          e.preventDefault();
+          const docId = downloadBtn.dataset.docId;
+          const filename = downloadBtn.dataset.filename;
+          const docType = downloadBtn.dataset.docType;
           
-          setTimeout(() => {
-            btn.innerHTML = '<i class="ph-bold ph-download-simple text-xl"></i>';
-            btn.classList.remove('bg-green-500', 'text-white');
-            btn.classList.add('bg-lime-400');
-            btn.disabled = false;
-          }, 2000);
+          this._handleDownload(docId, filename, docType);
         }
-        
-      } catch (error) {
-        console.error('Download error:', error);
-        alert('Gagal mengunduh file: ' + error.message);
-        
-        const btn = document.querySelector(`[data-doc-id="${docId}"] .download-btn`);
-        if (btn) {
-          btn.innerHTML = '<i class="ph-bold ph-warning text-xl"></i>';
-          btn.classList.add('bg-red-500', 'text-white');
-          
-          setTimeout(() => {
-            btn.innerHTML = '<i class="ph-bold ph-download-simple text-xl"></i>';
-            btn.classList.remove('bg-red-500', 'text-white');
-            btn.disabled = false;
-          }, 2000);
-        }
-      }
+      });
+    }
+  }
+
+  async _handleDownload(docId, filename, docType) {
+    const btn = document.querySelector(`[data-doc-id="${docId}"] .download-btn`);
+    
+    if (!btn) {
+      console.error('Download button not found');
+      return;
     }
 
+    // Store original state
+    const originalHTML = btn.innerHTML;
+    const originalClasses = btn.className;
+
+    try {
+      // Update UI to loading state
+      btn.disabled = true;
+      btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin text-xl"></i>';
+      
+      console.log('🔽 Starting download:', { docId, filename, docType });
+
+      // Get auth token
+      const token = getAuthToken();
+      
+      if (!token) {
+        throw new Error('Authentication token not found. Please login again.');
+      }
+
+      // Determine the correct endpoint based on document type
+      let downloadUrl;
+      if (docType === 'BAPB') {
+        downloadUrl = API_ENDPOINT.DOWNLOAD_BAPB(docId);
+      } else if (docType === 'BAPP') {
+        downloadUrl = API_ENDPOINT.DOWNLOAD_BAPP(docId);
+      } else {
+        // Fallback to generic endpoint
+        downloadUrl = API_ENDPOINT.DOWNLOAD_DOCUMENT(docId);
+      }
+
+      console.log('📡 Download URL:', downloadUrl);
+
+      // Fetch the file
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('📥 Response status:', response.status);
+
+      // Handle different error status codes
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Dokumen tidak ditemukan di server.');
+        } else if (response.status === 403) {
+          throw new Error('Anda tidak memiliki izin untuk mengunduh dokumen ini.');
+        } else if (response.status === 401) {
+          throw new Error('Sesi Anda telah berakhir. Silakan login kembali.');
+        } else {
+          throw new Error(`Server error: ${response.status} - ${response.statusText}`);
+        }
+      }
+
+      // Convert response to blob
+      const blob = await response.blob();
+      console.log('📦 Blob size:', blob.size, 'bytes');
+
+      // Check if blob is valid
+      if (blob.size === 0) {
+        throw new Error('File kosong atau tidak valid.');
+      }
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      
+      // Trigger download
+      a.click();
+      
+      console.log('✅ Download triggered successfully');
+
+      // Cleanup
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+
+      // Success feedback
+      btn.innerHTML = '<i class="ph-bold ph-check text-xl"></i>';
+      btn.className = originalClasses.replace('bg-lime-400', 'bg-green-500').replace('hover:bg-slate-900', '') + ' text-white';
+      
+      this._showSuccessNotification('File berhasil diunduh!');
+
+      // Restore button after delay
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.className = originalClasses;
+        btn.disabled = false;
+      }, 2000);
+
+    } catch (error) {
+      console.error('❌ Download error:', error);
+      
+      // Error feedback
+      btn.innerHTML = '<i class="ph-bold ph-warning text-xl"></i>';
+      btn.className = originalClasses.replace('bg-lime-400', 'bg-red-500').replace('hover:bg-slate-900', '') + ' text-white';
+      
+      // Show error notification
+      this._showErrorNotification(error.message || 'Gagal mengunduh file. Silakan coba lagi.');
+
+      // Restore button after delay
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.className = originalClasses;
+        btn.disabled = false;
+      }, 2000);
+    }
+  }
+
+  _showSuccessNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-8 right-8 bg-lime-400 border-2 border-slate-900 p-6 z-50 shadow-sharp max-w-md';
+    notification.innerHTML = `
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-slate-900 flex items-center justify-center">
+          <i class="ph-bold ph-check text-lime-400 text-2xl"></i>
+        </div>
+        <div class="flex-1">
+          <h4 class="font-black text-slate-900 mb-1 tracking-tight uppercase">BERHASIL!</h4>
+          <p class="text-xs text-slate-900 font-bold tracking-tight">${message}</p>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transition = 'opacity 0.3s';
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+
+  _showErrorNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-8 right-8 bg-red-500 border-2 border-slate-900 p-6 z-50 shadow-sharp max-w-md';
+    notification.innerHTML = `
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 bg-slate-900 flex items-center justify-center flex-shrink-0">
+          <i class="ph-bold ph-warning text-red-500 text-2xl"></i>
+        </div>
+        <div class="flex-1">
+          <h4 class="font-black text-white mb-1 tracking-tight uppercase">GAGAL DOWNLOAD!</h4>
+          <p class="text-xs text-white font-bold tracking-tight">${message}</p>
+        </div>
+        <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-slate-200">
+          <i class="ph-bold ph-x text-xl"></i>
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transition = 'opacity 0.3s';
+      setTimeout(() => notification.remove(), 300);
+    }, 5000);
+  }
 
   _showError(msg) {
     document.getElementById('main-content').innerHTML = `
@@ -201,12 +337,4 @@ async afterRender() {
     const title = document.getElementById('page-title');
     if (title) title.innerHTML = 'PUSAT UNDUHAN';
   }
-}
-
-// Export download handler to window
-if (typeof window !== 'undefined') {
-  const downloadPage = new DownloadPage();
-  window.downloadHandler = (docId, filename) => {
-    downloadPage._handleDownload(docId, filename);
-  };
 }

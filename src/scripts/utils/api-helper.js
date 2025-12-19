@@ -1,5 +1,6 @@
+// File: src/scripts/utils/api-helper.js (CORRECTED VERSION)
 import CONFIG from '../config';
-import API_ENDPOINT from '../globals/api-endpoint'; // Pastikan ini di-import
+import API_ENDPOINT from '../globals/api-endpoint';
 
 /**
  * =========================
@@ -100,7 +101,6 @@ const API = {
 /**
  * =========================
  * SPECIFIC API HELPERS
- * (Ditambahkan untuk memperbaiki Error Export)
  * =========================
  */
 
@@ -120,7 +120,6 @@ const BapbAPI = {
     return API.post(API_ENDPOINT.SIGN_BAPB_VENDOR(id), { signature });
   },
   async download(id, filename) {
-    // Logic download custom jika perlu, atau return URL
     return API.get(API_ENDPOINT.DOWNLOAD_BAPB(id));
   }
 };
@@ -149,6 +148,20 @@ const BappAPI = {
 };
 
 const PaymentAPI = {
+  async getList(params) {
+    let url = API_ENDPOINT.GET_PAYMENTS_LIST;
+    if (params) {
+      const queryString = new URLSearchParams(params).toString();
+      url += `?${queryString}`;
+    }
+    return API.get(url);
+  },
+  async getDetail(id) {
+    return API.get(API_ENDPOINT.GET_PAYMENT_DETAIL(id));
+  },
+  async updateStatus(id, data) {
+    return API.put(API_ENDPOINT.UPDATE_PAYMENT_STATUS(id), data);
+  },
   async getUnpaidDocuments() {
     return API.get(API_ENDPOINT.GET_UNPAID_DOCUMENTS);
   },
@@ -157,11 +170,16 @@ const PaymentAPI = {
   }
 };
 
+/**
+ * =========================
+ * EXPORTS
+ * =========================
+ */
 export {
   API,
-  BapbAPI,     // <-- Added export
-  BappAPI,     // <-- Added export
-  PaymentAPI,  // <-- Added export
+  BapbAPI,
+  BappAPI,
+  PaymentAPI,
   getAuthToken,
   getUserData,
   saveAuthData,

@@ -54,15 +54,18 @@ const API_ENDPOINT = {
   GET_PENDING_APPROVALS: `${CONFIG.BASE_URL}/approvals/pending`,
   GET_APPROVAL_DETAIL: (id, type) => `${CONFIG.BASE_URL}/${type}/${id}`,
   APPROVE_DOCUMENT: (id, type) => `${CONFIG.BASE_URL}/${type}/${id}/approve`,
+  APPROVE_BAPB: (id) => `${CONFIG.BASE_URL}/bapb/${id}/approve`,
+  APPROVE_BAPP: (id) => `${CONFIG.BASE_URL}/bapp/${id}/approve`,
 
   // ============================================
   // PAYMENT ENDPOINTS (Admin Only)
   // ============================================
-  GET_PAYMENT_LIST: `${CONFIG.BASE_URL}/payments`,
+  GET_PAYMENTS_LIST: `${CONFIG.BASE_URL}/payments`,
+  GET_PAYMENT_DETAIL: (id) => `${CONFIG.BASE_URL}/payments/${id}`,
+  UPDATE_PAYMENT_STATUS: (id) => `${CONFIG.BASE_URL}/payments/${id}`,
   GET_UNPAID_DOCUMENTS: `${CONFIG.BASE_URL}/payments/unpaid`,
   PAY_DOCUMENT: (id, type) => `${CONFIG.BASE_URL}/payments/${type}/${id}/pay`,
   GET_PAYMENT_HISTORY: `${CONFIG.BASE_URL}/payments/history`,
-  GET_PAYMENT_DETAIL: (id) => `${CONFIG.BASE_URL}/payments/${id}`,
 
   // ============================================
   // DOWNLOAD ENDPOINTS (Completed Documents)

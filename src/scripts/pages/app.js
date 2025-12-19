@@ -108,78 +108,89 @@ class App {
   }
 
   _updateUIByRole() {
-    const userData = getUserData();
-    
-    if (!userData) {
-      console.error('❌ RBAC: No userData found in sessionStorage');
-      return;
-    }
-
-    console.log('🔐 RBAC: Updating UI for user:', userData);
-
-    // Validate userData
-    if (!isValidUserData(userData)) {
-      console.error('❌ RBAC: Invalid userData structure');
-      this._showInvalidUserDataError();
-      return;
-    }
-
-    const { role, vendorType, name, jobTitle, initials } = userData;
-
-    console.log('👤 User Info:', { role, vendorType, name, jobTitle });
-
-    // Get Menu Elements
-    const navInputGroup = document.getElementById('nav-input-group');
-    const navApproval = document.getElementById('nav-approval');
-    const bapbLink = document.querySelector('a[href="#/bapb"]');
-    const bappLink = document.querySelector('a[href="#/bapp"]');
-
-    // Update Profile Card
-    const profileName = document.getElementById('profile-name');
-    const profileJob = document.getElementById('profile-job');
-    const profileInitials = document.getElementById('profile-initials');
-
-    if (profileName) profileName.textContent = name || 'User';
-    if (profileJob) profileJob.textContent = jobTitle || 'Staff';
-    if (profileInitials) profileInitials.textContent = initials || 'U';
-
-    // ===============================
-    // RBAC LOGIC - Menu Visibility
-    // ===============================
-    
-    console.log('🔍 Checking RBAC permissions...');
-
-    // Default: Hide all conditional menus
-    if (navInputGroup) navInputGroup.classList.add('hidden');
-    if (navApproval) navApproval.classList.add('hidden');
-    if (bapbLink) bapbLink.parentElement?.classList.add('hidden');
-    if (bappLink) bappLink.parentElement?.classList.add('hidden');
-
-    // Check BAPB Access
-    if (canAccessBAPB(userData)) {
-      console.log('✅ BAPB access granted');
-      if (navInputGroup) navInputGroup.classList.remove('hidden');
-      if (bapbLink) bapbLink.parentElement?.classList.remove('hidden');
-    }
-
-    // Check BAPP Access
-    if (canAccessBAPP(userData)) {
-      console.log('✅ BAPP access granted');
-      if (navInputGroup) navInputGroup.classList.remove('hidden');
-      if (bappLink) bappLink.parentElement?.classList.remove('hidden');
-    }
-
-    // Check Approval Access
-    if (canAccessApproval(userData)) {
-      console.log('✅ Approval access granted');
-      if (navApproval) navApproval.classList.remove('hidden');
-    }
-
-    // Show Role Badge
-    this._showRoleBadge(userData);
-
-    console.log('✅ RBAC: UI updated successfully');
+  const userData = getUserData();
+  
+  if (!userData) {
+    console.error('❌ RBAC: No userData found in sessionStorage');
+    return;
   }
+
+  console.log('🔐 RBAC: Updating UI for user:', userData);
+
+  // Validate userData
+  if (!isValidUserData(userData)) {
+    console.error('❌ RBAC: Invalid userData structure');
+    this._showInvalidUserDataError();
+    return;
+  }
+
+  const { role, vendorType, name, jobTitle, initials } = userData;
+
+  console.log('👤 User Info:', { role, vendorType, name, jobTitle });
+
+  // Get Menu Elements
+  const navInputGroup = document.getElementById('nav-input-group');
+  const navApproval = document.getElementById('nav-approval');
+  const navAdminGroup = document.getElementById('nav-admin-group'); // NEW
+  const navPayment = document.getElementById('nav-payment'); // NEW
+  const bapbLink = document.querySelector('a[href="#/bapb"]');
+  const bappLink = document.querySelector('a[href="#/bapp"]');
+
+  // Update Profile Card
+  const profileName = document.getElementById('profile-name');
+  const profileJob = document.getElementById('profile-job');
+  const profileInitials = document.getElementById('profile-initials');
+
+  if (profileName) profileName.textContent = name || 'User';
+  if (profileJob) profileJob.textContent = jobTitle || 'Staff';
+  if (profileInitials) profileInitials.textContent = initials || 'U';
+
+  // ===============================
+  // RBAC LOGIC - Menu Visibility
+  // ===============================
+  
+  console.log('🔍 Checking RBAC permissions...');
+
+  // Default: Hide all conditional menus
+  if (navInputGroup) navInputGroup.classList.add('hidden');
+  if (navApproval) navApproval.classList.add('hidden');
+  if (navAdminGroup) navAdminGroup.classList.add('hidden'); // NEW
+  if (navPayment) navPayment.classList.add('hidden'); // NEW
+  if (bapbLink) bapbLink.parentElement?.classList.add('hidden');
+  if (bappLink) bappLink.parentElement?.classList.add('hidden');
+
+  // Check BAPB Access
+  if (canAccessBAPB(userData)) {
+    console.log('✅ BAPB access granted');
+    if (navInputGroup) navInputGroup.classList.remove('hidden');
+    if (bapbLink) bapbLink.parentElement?.classList.remove('hidden');
+  }
+
+  // Check BAPP Access
+  if (canAccessBAPP(userData)) {
+    console.log('✅ BAPP access granted');
+    if (navInputGroup) navInputGroup.classList.remove('hidden');
+    if (bappLink) bappLink.parentElement?.classList.remove('hidden');
+  }
+
+  // Check Approval Access
+  if (canAccessApproval(userData)) {
+    console.log('✅ Approval access granted');
+    if (navApproval) navApproval.classList.remove('hidden');
+  }
+
+  // NEW: Check Payment Access (Admin Only)
+  if (role === 'admin') {
+    console.log('✅ Admin access - showing admin menu');
+    if (navAdminGroup) navAdminGroup.classList.remove('hidden');
+    if (navPayment) navPayment.classList.remove('hidden');
+  }
+
+  // Show Role Badge
+  this._showRoleBadge(userData);
+
+  console.log('✅ RBAC: UI updated successfully');
+}
 
   _showRoleBadge(userData) {
     const header = document.querySelector('header');
