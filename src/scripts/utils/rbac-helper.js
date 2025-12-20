@@ -1,4 +1,4 @@
-// File: src/scripts/utils/rbac-helper.js (COMPLETE REWRITE)
+// File: src/scripts/utils/rbac-helper.js (COMPLETE FIXED VERSION)
 
 /**
  * RBAC Helper Functions
@@ -11,6 +11,36 @@
  * - PIC Gudang: BAPB Approval
  * - Approver: BAPP Approval
  */
+
+/**
+ * Normalize vendorType untuk handling berbagai format dari backend
+ * @param {string} vendorType - Raw vendorType dari backend
+ * @returns {string} - Normalized vendorType (VENDOR_BARANG atau VENDOR_JASA)
+ */
+function normalizeVendorType(vendorType) {
+  if (!vendorType) return null;
+  
+  const normalized = vendorType.toUpperCase().trim();
+  
+  // Handle berbagai format:
+  // "barang", "BARANG", "vendor_barang", "VENDOR_BARANG"
+  if (normalized === 'BARANG' || normalized.includes('BARANG')) {
+    return 'VENDOR_BARANG';
+  }
+  
+  // "jasa", "JASA", "vendor_jasa", "VENDOR_JASA"
+  if (normalized === 'JASA' || normalized.includes('JASA')) {
+    return 'VENDOR_JASA';
+  }
+  
+  // Already in correct format
+  if (normalized === 'VENDOR_BARANG' || normalized === 'VENDOR_JASA') {
+    return normalized;
+  }
+  
+  console.warn('⚠️ Unknown vendorType format:', vendorType);
+  return null;
+}
 
 /**
  * Check if user can access BAPB (Barang)
@@ -52,14 +82,17 @@ export function canAccessBAPB(userData) {
       return false;
     }
 
-    if (vendorType === 'VENDOR_BARANG') {
+    // Normalize untuk robust checking
+    const normalizedType = normalizeVendorType(vendorType);
+    
+    if (normalizedType === 'VENDOR_BARANG') {
       console.log('✅ RBAC: Vendor Barang has BAPB access');
       return true;
-    } else if (vendorType === 'VENDOR_JASA') {
+    } else if (normalizedType === 'VENDOR_JASA') {
       console.log('🚫 RBAC: Vendor Jasa BLOCKED from BAPB');
       return false;
     } else {
-      console.error('❌ RBAC: Unknown vendorType:', vendorType);
+      console.error('❌ RBAC: Unknown normalized vendorType:', normalizedType);
       return false;
     }
   }
@@ -111,14 +144,17 @@ export function canAccessBAPP(userData) {
       return false;
     }
 
-    if (vendorType === 'VENDOR_JASA') {
+    // Normalize untuk robust checking
+    const normalizedType = normalizeVendorType(vendorType);
+    
+    if (normalizedType === 'VENDOR_JASA') {
       console.log('✅ RBAC: Vendor Jasa has BAPP access');
       return true;
-    } else if (vendorType === 'VENDOR_BARANG') {
+    } else if (normalizedType === 'VENDOR_BARANG') {
       console.log('🚫 RBAC: Vendor Barang BLOCKED from BAPP');
       return false;
     } else {
-      console.error('❌ RBAC: Unknown vendorType:', vendorType);
+      console.error('❌ RBAC: Unknown normalized vendorType:', normalizedType);
       return false;
     }
   }
@@ -220,11 +256,13 @@ export function getUserDisplayInfo(userData) {
     icon = 'ph-crown';
     badgeColor = 'purple';
   } else if (role === 'vendor') {
-    if (vendorType === 'VENDOR_BARANG') {
+    const normalizedType = normalizeVendorType(vendorType);
+    
+    if (normalizedType === 'VENDOR_BARANG') {
       displayRole = 'VENDOR BARANG';
       icon = 'ph-package';
       badgeColor = 'blue';
-    } else if (vendorType === 'VENDOR_JASA') {
+    } else if (normalizedType === 'VENDOR_JASA') {
       displayRole = 'VENDOR JASA';
       icon = 'ph-briefcase';
       badgeColor = 'purple';
@@ -286,7 +324,8 @@ export function isValidUserData(userData) {
  */
 export function canInputBAPB(userData) {
   if (!userData || userData.role !== 'vendor') return false;
-  return userData.vendorType === 'VENDOR_BARANG';
+  const normalizedType = normalizeVendorType(userData.vendorType);
+  return normalizedType === 'VENDOR_BARANG';
 }
 
 /**
@@ -296,7 +335,8 @@ export function canInputBAPB(userData) {
  */
 export function canInputBAPP(userData) {
   if (!userData || userData.role !== 'vendor') return false;
-  return userData.vendorType === 'VENDOR_JASA';
+  const normalizedType = normalizeVendorType(userData.vendorType);
+  return normalizedType === 'VENDOR_JASA';
 }
 
 /**
@@ -308,7 +348,10 @@ export function canSignBAPB(userData) {
   if (!userData) return false;
   
   // Vendor Barang dapat sign BAPB
-  if (userData.role === 'vendor' && userData.vendorType === 'VENDOR_BARANG') return true;
+  if (userData.role === 'vendor') {
+    const normalizedType = normalizeVendorType(userData.vendorType);
+    if (normalizedType === 'VENDOR_BARANG') return true;
+  }
   
   // PIC Gudang dapat sign BAPB
   if (userData.role === 'pic_gudang') return true;
@@ -325,10 +368,16 @@ export function canSignBAPP(userData) {
   if (!userData) return false;
   
   // Vendor Jasa dapat sign BAPP
-  if (userData.role === 'vendor' && userData.vendorType === 'VENDOR_JASA') return true;
+  if (userData.role === 'vendor') {
+    const normalizedType = normalizeVendorType(userData.vendorType);
+    if (normalizedType === 'VENDOR_JASA') return true;
+  }
   
   // Approver dapat sign BAPP
   if (userData.role === 'approver') return true;
   
   return false;
 }
+
+// Export normalize function untuk digunakan di tempat lain
+export { normalizeVendorType };

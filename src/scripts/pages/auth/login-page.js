@@ -1,4 +1,4 @@
-// src/scripts/pages/auth/login-page.js (COMPLETE FIXED VERSION)
+// File: src/scripts/pages/auth/login-page.js (COMPLETE FIXED VERSION)
 import { API, saveAuthData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
@@ -123,7 +123,7 @@ export default class LoginPage {
             found_vendorType: user.vendorType,
             found_vendor_type: user.vendor_type,
             found_type: user.type,
-            final_result: vendorType
+            raw_result: vendorType
           });
           
           // ============================================
@@ -138,23 +138,33 @@ export default class LoginPage {
           
           // ============================================
           // ✅ NORMALIZE FORMAT: Ensure consistent format
-          // Convert: "barang" → "VENDOR_BARANG", "jasa" → "VENDOR_JASA"
+          // Convert berbagai format ke VENDOR_BARANG atau VENDOR_JASA
           // ============================================
-          if (vendorType && !vendorType.startsWith('VENDOR_')) {
-            const original = vendorType;
-            
-            if (vendorType.toLowerCase() === 'barang') {
-              vendorType = 'VENDOR_BARANG';
-              console.log(`🔄 Normalized vendorType: "${original}" → "VENDOR_BARANG"`);
-            } else if (vendorType.toLowerCase() === 'jasa') {
-              vendorType = 'VENDOR_JASA';
-              console.log(`🔄 Normalized vendorType: "${original}" → "VENDOR_JASA"`);
-            } else {
-              // If format unknown, try to uppercase and add prefix
-              console.warn(`⚠️ Unknown vendorType format: "${original}"`);
-              vendorType = `VENDOR_${vendorType.toUpperCase()}`;
-              console.log(`🔄 Attempted normalization: "${original}" → "${vendorType}"`);
-            }
+          const originalVendorType = vendorType;
+          const normalized = vendorType.toUpperCase().trim();
+          
+          console.log('🔄 Normalizing vendorType from:', originalVendorType);
+          
+          // Handle "barang" → "VENDOR_BARANG"
+          if (normalized === 'BARANG' || normalized.includes('BARANG')) {
+            vendorType = 'VENDOR_BARANG';
+            console.log(`✅ Normalized: "${originalVendorType}" → "VENDOR_BARANG"`);
+          } 
+          // Handle "jasa" → "VENDOR_JASA"
+          else if (normalized === 'JASA' || normalized.includes('JASA')) {
+            vendorType = 'VENDOR_JASA';
+            console.log(`✅ Normalized: "${originalVendorType}" → "VENDOR_JASA"`);
+          }
+          // Already in correct format
+          else if (normalized === 'VENDOR_BARANG' || normalized === 'VENDOR_JASA') {
+            vendorType = normalized;
+            console.log(`✅ Already normalized: "${vendorType}"`);
+          }
+          // Unknown format - try to add VENDOR_ prefix
+          else {
+            console.warn(`⚠️ Unknown vendorType format: "${originalVendorType}"`);
+            vendorType = `VENDOR_${normalized}`;
+            console.log(`🔄 Attempted normalization: "${originalVendorType}" → "${vendorType}"`);
           }
           
           console.log('✅ Final vendorType after normalization:', vendorType);
@@ -172,7 +182,7 @@ export default class LoginPage {
           email: user.email || email,
           role: user.role || 'vendor',
           vendorType: vendorType, // ✅ NULL untuk non-vendor, WAJIB ADA untuk vendor
-          jobTitle: user.jobTitle || user.job_title || this._getDefaultJobTitle(user.role),
+          jobTitle: user.jobTitle || user.job_title || this._getDefaultJobTitle(user.role, vendorType),
           initials: this._getInitials(user.name || email),
           company: user.company || null,
           phone: user.phone || null
@@ -236,9 +246,10 @@ export default class LoginPage {
     });
   }
 
-  _getDefaultJobTitle(role) {
+  _getDefaultJobTitle(role, vendorType) {
     const titles = {
-      'vendor': 'Vendor',
+      'vendor': vendorType === 'VENDOR_BARANG' ? 'Vendor Barang' : 
+                vendorType === 'VENDOR_JASA' ? 'Vendor Jasa' : 'Vendor',
       'pic_gudang': 'PIC Gudang',
       'approver': 'Approver',
       'admin': 'Administrator'

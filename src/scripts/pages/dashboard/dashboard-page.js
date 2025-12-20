@@ -258,116 +258,110 @@ export default class DashboardPage {
     `;
   }
 
-  /**
-   * ============================================
-   * ✅ RENDER QUICK ACTIONS - RBAC COMPLIANT
-   * ============================================
-   */
-  _renderQuickActions() {
-    const showBAPB = canAccessBAPB(this.userData);
-    const showBAPP = canAccessBAPP(this.userData);
-    const showApproval = canAccessApproval(this.userData);
+  
+_renderQuickActions() {
+  const showBAPB = canAccessBAPB(this.userData);
+  const showBAPP = canAccessBAPP(this.userData);
+  const showApproval = canAccessApproval(this.userData);
 
-    console.log('🎨 Quick Actions Visibility:', { 
-      role: this.userData.role, 
-      vendorType: this.userData.vendorType,
-      showBAPB, 
-      showBAPP, 
-      showApproval 
-    });
+  console.log('🎨 Quick Actions Visibility:', { 
+    role: this.userData.role, 
+    vendorType: this.userData.vendorType,
+    showBAPB, 
+    showBAPP, 
+    showApproval 
+  });
 
-    const actions = [];
+  const actions = [];
 
-    // ============================================
-    // ✅ STRICT RULE: HANYA tampilkan menu yang diizinkan RBAC
-    // ============================================
-    
-    // BAPB - Hanya untuk Vendor Barang, PIC Gudang, dan Admin
-    if (showBAPB) {
-      console.log('➕ Adding BAPB quick action');
-      actions.push(`
-        <a href="#/bapb/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-          <div class="w-12 h-12 bg-blue-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-blue-400">
-            <i class="ph-bold ph-package text-white text-2xl"></i>
-          </div>
-          <div>
-            <p class="font-black text-sm uppercase tracking-tight">BUAT BAPB</p>
-            <p class="text-xs font-bold opacity-70">Input Barang</p>
-          </div>
-        </a>
-      `);
-    } else {
-      console.log('🚫 BAPB quick action BLOCKED for this user');
-    }
-
-    // BAPP - Hanya untuk Vendor Jasa, Approver, dan Admin
-    if (showBAPP) {
-      console.log('➕ Adding BAPP quick action');
-      actions.push(`
-        <a href="#/bapp/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-          <div class="w-12 h-12 bg-purple-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-purple-400">
-            <i class="ph-bold ph-briefcase text-white text-2xl"></i>
-          </div>
-          <div>
-            <p class="font-black text-sm uppercase tracking-tight">BUAT BAPP</p>
-            <p class="text-xs font-bold opacity-70">Input Jasa</p>
-          </div>
-        </a>
-      `);
-    } else {
-      console.log('🚫 BAPP quick action BLOCKED for this user');
-    }
-
-    // Approval - Untuk Vendor, PIC Gudang, dan Approver (TIDAK untuk Admin)
-    if (showApproval) {
-      console.log('➕ Adding Approval quick action');
-      actions.push(`
-        <a href="#/approval" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-          <div class="w-12 h-12 bg-lime-400 border-2 border-slate-900 flex items-center justify-center group-hover:bg-lime-500">
-            <i class="ph-bold ph-signature text-slate-900 text-2xl"></i>
-          </div>
-          <div>
-            <p class="font-black text-sm uppercase tracking-tight">APPROVAL</p>
-            <p class="text-xs font-bold opacity-70">Tanda Tangan</p>
-          </div>
-        </a>
-      `);
-    } else {
-      console.log('ℹ️ Approval quick action not shown for this role');
-    }
-
-    // Download - Untuk SEMUA user
-    console.log('➕ Adding Download quick action (available for all)');
+  
+  // BAPB - Hanya untuk Vendor Barang, PIC Gudang, dan Admin
+  if (showBAPB) {
+    console.log('➕ Adding BAPB quick action');
     actions.push(`
-      <a href="#/download" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-        <div class="w-12 h-12 bg-slate-700 border-2 border-slate-900 flex items-center justify-center group-hover:bg-slate-600">
-          <i class="ph-bold ph-download-simple text-white text-2xl"></i>
+      <a href="#/bapb/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+        <div class="w-12 h-12 bg-blue-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-blue-400">
+          <i class="ph-bold ph-package text-white text-2xl"></i>
         </div>
         <div>
-          <p class="font-black text-sm uppercase tracking-tight">DOWNLOAD</p>
-          <p class="text-xs font-bold opacity-70">Arsip Digital</p>
+          <p class="font-black text-sm uppercase tracking-tight">BUAT BAPB</p>
+          <p class="text-xs font-bold opacity-70">Input Barang</p>
         </div>
       </a>
     `);
-
-    // ============================================
-    // ⚠️ EDGE CASE: Jika tidak ada action sama sekali
-    // ============================================
-    if (actions.length === 0) {
-      console.warn('⚠️ No quick actions available for this user');
-      console.warn('⚠️ UserData:', this.userData);
-      return `
-        <div class="col-span-3 p-8 text-center border-2 border-red-500 bg-red-50">
-          <i class="ph-bold ph-warning text-4xl text-red-500 mb-2"></i>
-          <p class="text-red-700 font-bold">TIDAK ADA AKSI TERSEDIA</p>
-          <p class="text-xs text-red-600 mt-1">Hubungi administrator jika ini tidak seharusnya terjadi</p>
-        </div>
-      `;
-    }
-
-    console.log(`✅ Rendered ${actions.length} quick actions for ${this.userData.role}`);
-    return actions.join('');
+  } else {
+    console.log('🚫 BAPB quick action BLOCKED for this user');
   }
+
+  // BAPP - Hanya untuk Vendor Jasa, Approver, dan Admin
+  if (showBAPP) {
+    console.log('➕ Adding BAPP quick action');
+    actions.push(`
+      <a href="#/bapp/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+        <div class="w-12 h-12 bg-purple-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-purple-400">
+          <i class="ph-bold ph-briefcase text-white text-2xl"></i>
+        </div>
+        <div>
+          <p class="font-black text-sm uppercase tracking-tight">BUAT BAPP</p>
+          <p class="text-xs font-bold opacity-70">Input Jasa</p>
+        </div>
+      </a>
+    `);
+  } else {
+    console.log('🚫 BAPP quick action BLOCKED for this user');
+  }
+
+  // Approval - Untuk Vendor, PIC Gudang, dan Approver (TIDAK untuk Admin)
+  if (showApproval) {
+    console.log('➕ Adding Approval quick action');
+    actions.push(`
+      <a href="#/approval" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+        <div class="w-12 h-12 bg-lime-400 border-2 border-slate-900 flex items-center justify-center group-hover:bg-lime-500">
+          <i class="ph-bold ph-signature text-slate-900 text-2xl"></i>
+        </div>
+        <div>
+          <p class="font-black text-sm uppercase tracking-tight">APPROVAL</p>
+          <p class="text-xs font-bold opacity-70">Tanda Tangan</p>
+        </div>
+      </a>
+    `);
+  } else {
+    console.log('ℹ️ Approval quick action not shown for this role');
+  }
+
+  // Download - Untuk SEMUA user
+  console.log('➕ Adding Download quick action (available for all)');
+  actions.push(`
+    <a href="#/download" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+      <div class="w-12 h-12 bg-slate-700 border-2 border-slate-900 flex items-center justify-center group-hover:bg-slate-600">
+        <i class="ph-bold ph-download-simple text-white text-2xl"></i>
+      </div>
+      <div>
+        <p class="font-black text-sm uppercase tracking-tight">DOWNLOAD</p>
+        <p class="text-xs font-bold opacity-70">Arsip Digital</p>
+      </div>
+    </a>
+  `);
+
+  // ============================================
+  // ⚠️ EDGE CASE: Jika tidak ada action sama sekali
+  // ============================================
+  if (actions.length === 0) {
+    console.error('⚠️ No quick actions available for this user');
+    console.error('⚠️ UserData:', this.userData);
+    return `
+      <div class="col-span-3 p-8 text-center border-2 border-red-500 bg-red-50">
+        <i class="ph-bold ph-warning text-4xl text-red-500 mb-2"></i>
+        <p class="text-red-700 font-bold">TIDAK ADA AKSI TERSEDIA</p>
+        <p class="text-xs text-red-600 mt-1">Role: ${this.userData.role} | Type: ${this.userData.vendorType || 'N/A'}</p>
+        <p class="text-xs text-red-600">Hubungi administrator jika ini tidak seharusnya terjadi</p>
+      </div>
+    `;
+  }
+
+  console.log(`✅ Rendered ${actions.length} quick actions for ${this.userData.role}`);
+  return actions.join('');
+}
 
   /**
    * Render action items table rows

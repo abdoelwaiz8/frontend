@@ -82,11 +82,9 @@ _filterDocumentsByRole(documents) {
   // Admin: lihat semua yang belum complete
   if (this.userRole === 'admin') {
     const filtered = documents.filter(doc => {
-      // BAPB: belum kedua-duanya sign
       if (doc.type === 'BAPB') {
         return !doc.vendor_signed || !doc.pic_gudang_signed;
       }
-      // BAPP: belum kedua-duanya sign
       if (doc.type === 'BAPP') {
         return !doc.vendor_signed || !doc.approver_signed;
       }
@@ -96,22 +94,36 @@ _filterDocumentsByRole(documents) {
     return filtered;
   }
 
-  // Vendor Barang: hanya BAPB yang belum vendor sign
-  if (this.userRole === 'vendor' && this.vendorType === 'VENDOR_BARANG') {
-    const filtered = documents.filter(doc => 
-      doc.type === 'BAPB' && !doc.vendor_signed
-    );
-    console.log('📦 Vendor Barang - BAPB belum vendor sign:', filtered);
-    return filtered;
-  }
-
-  // Vendor Jasa: hanya BAPP yang belum vendor sign
-  if (this.userRole === 'vendor' && this.vendorType === 'VENDOR_JASA') {
-    const filtered = documents.filter(doc => 
-      doc.type === 'BAPP' && !doc.vendor_signed
-    );
-    console.log('📦 Vendor Jasa - BAPP belum vendor sign:', filtered);
-    return filtered;
+  // ============================================
+  // ✅ VENDOR FILTERING - Separate by type
+  // ============================================
+  if (this.userRole === 'vendor') {
+    // Normalize vendorType
+    const normalizedType = normalizeVendorType(this.vendorType);
+    
+    console.log('🔍 Vendor filtering with normalized type:', normalizedType);
+    
+    // Vendor Barang: hanya BAPB yang belum vendor sign
+    if (normalizedType === 'VENDOR_BARANG') {
+      const filtered = documents.filter(doc => 
+        doc.type === 'BAPB' && !doc.vendor_signed
+      );
+      console.log('📦 Vendor Barang - BAPB belum vendor sign:', filtered.length);
+      return filtered;
+    }
+    
+    // Vendor Jasa: hanya BAPP yang belum vendor sign
+    if (normalizedType === 'VENDOR_JASA') {
+      const filtered = documents.filter(doc => 
+        doc.type === 'BAPP' && !doc.vendor_signed
+      );
+      console.log('📦 Vendor Jasa - BAPP belum vendor sign:', filtered.length);
+      return filtered;
+    }
+    
+    // Unknown vendor type - return empty
+    console.warn('⚠️ Unknown vendor type, no documents shown');
+    return [];
   }
 
   // PIC Gudang: hanya BAPB yang sudah vendor sign tapi belum PIC sign
@@ -119,7 +131,7 @@ _filterDocumentsByRole(documents) {
     const filtered = documents.filter(doc => 
       doc.type === 'BAPB' && doc.vendor_signed && !doc.pic_gudang_signed
     );
-    console.log('📦 PIC Gudang - BAPB sudah vendor sign, belum PIC sign:', filtered);
+    console.log('📦 PIC Gudang - BAPB sudah vendor sign, belum PIC sign:', filtered.length);
     return filtered;
   }
 
@@ -128,7 +140,7 @@ _filterDocumentsByRole(documents) {
     const filtered = documents.filter(doc => 
       doc.type === 'BAPP' && doc.vendor_signed && !doc.approver_signed
     );
-    console.log('📦 Approver - BAPP sudah vendor sign, belum approver sign:', filtered);
+    console.log('📦 Approver - BAPP sudah vendor sign, belum approver sign:', filtered.length);
     return filtered;
   }
 

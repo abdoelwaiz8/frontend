@@ -1,4 +1,4 @@
-// File: src/scripts/pages/app.js (COMPLETE FIXED - SECURITY CRITICAL)
+// File: src/scripts/pages/app.js (COMPLETE FIXED VERSION - SECURITY CRITICAL)
 import routes from '../routes/routes';
 import { getActiveRoute } from '../routes/url-parser';
 import { isAuthenticated, getUserData, clearAuthData } from '../utils/api-helper';
@@ -8,7 +8,8 @@ import {
   canAccessApproval,
   canAccessPayment,
   getUserDisplayInfo,
-  isValidUserData
+  isValidUserData,
+  normalizeVendorType
 } from '../utils/rbac-helper';
 
 class App {
@@ -85,10 +86,15 @@ class App {
         // Get full URL path (bukan hanya route pattern)
         const urlPath = window.location.hash.replace('#', '');
         
+        // Normalize vendorType untuk robust checking
+        const normalizedType = normalizeVendorType(userData.vendorType);
+        
+        console.log('🔄 Normalized vendorType for route guard:', normalizedType);
+        
         // ============================================
         // 🚨 CRITICAL RULE 1: BLOCK Vendor Barang dari SEMUA route BAPP
         // ============================================
-        if (userData.vendorType === 'VENDOR_BARANG') {
+        if (normalizedType === 'VENDOR_BARANG') {
           // Check jika URL mengandung /bapp di path
           if (urlPath.includes('/bapp')) {
             console.error('🚫 RBAC BLOCKED: Vendor Barang mencoba akses BAPP');
@@ -111,7 +117,7 @@ class App {
         // ============================================
         // 🚨 CRITICAL RULE 2: BLOCK Vendor Jasa dari SEMUA route BAPB
         // ============================================
-        if (userData.vendorType === 'VENDOR_JASA') {
+        if (normalizedType === 'VENDOR_JASA') {
           // Check jika URL mengandung /bapb di path
           if (urlPath.includes('/bapb')) {
             console.error('🚫 RBAC BLOCKED: Vendor Jasa mencoba akses BAPB');
@@ -247,6 +253,18 @@ class App {
       return;
     }
 
+    // ============================================
+    // ✅ NORMALIZE VENDOR TYPE for UI consistency
+    // ============================================
+    if (userData.role === 'vendor' && userData.vendorType) {
+      const originalType = userData.vendorType;
+      userData.vendorType = normalizeVendorType(userData.vendorType);
+      
+      if (originalType !== userData.vendorType) {
+        console.log(`🔄 UI: Normalized vendorType from "${originalType}" to "${userData.vendorType}"`);
+      }
+    }
+
     const { role, vendorType, name, jobTitle, initials } = userData;
 
     console.log('👤 User Info:', { role, vendorType, name, jobTitle });
@@ -296,32 +314,47 @@ class App {
 
     // Check BAPB Access
     if (canAccessBAPB(userData)) {
-      console.log('✅ BAPB access granted');
+      console.log('✅ BAPB access granted - showing menu');
       if (navInputGroup) navInputGroup.classList.remove('hidden');
       if (bapbLink) {
         const bapbParent = bapbLink.closest('.nav-item') || bapbLink.parentElement;
-        if (bapbParent) bapbParent.classList.remove('hidden');
+        if (bapbParent) {
+          bapbParent.classList.remove('hidden');
+          console.log('✅ BAPB link made visible');
+        }
       }
+    } else {
+      console.log('❌ BAPB access denied - menu hidden');
     }
 
     // Check BAPP Access
     if (canAccessBAPP(userData)) {
-      console.log('✅ BAPP access granted');
+      console.log('✅ BAPP access granted - showing menu');
       if (navInputGroup) navInputGroup.classList.remove('hidden');
       if (bappLink) {
         const bappParent = bappLink.closest('.nav-item') || bappLink.parentElement;
-        if (bappParent) bappParent.classList.remove('hidden');
+        if (bappParent) {
+          bappParent.classList.remove('hidden');
+          console.log('✅ BAPP link made visible');
+        }
       }
+    } else {
+      console.log('❌ BAPP access denied - menu hidden');
     }
 
     // ✅ CRITICAL: If navInputGroup has NO visible children, hide it
     if (navInputGroup) {
       const visibleChildren = Array.from(navInputGroup.querySelectorAll('.nav-item'))
-        .filter(item => !item.classList.contains('hidden'));
+        .filter(item => {
+          const parent = item.closest('.nav-item') || item.parentElement;
+          return parent && !parent.classList.contains('hidden');
+        });
       
       if (visibleChildren.length === 0) {
         navInputGroup.classList.add('hidden');
         console.log('ℹ️ No input menu items visible, hiding INPUT DOKUMEN group');
+      } else {
+        console.log(`✅ ${visibleChildren.length} input menu items visible`);
       }
     }
 
@@ -358,11 +391,11 @@ class App {
 
     const badge = document.createElement('div');
     badge.id = 'role-badge';
-    badge.className = `hidden lg:flex items-center gap-2 bg-slate-900 text-lime-400 px-4 py-2 border-2 border-slate-900 text-xs font-black tracking-tight uppercase`;
+    badge.className = `hidden lg:flex items-center gap-2 bg-${badgeColor}-500 text-white px-4 py-2 border-2 border-slate-900 text-xs font-black tracking-tight uppercase`;
 
     badge.innerHTML = `
       <i class="ph-bold ${icon}"></i>
-      <span>ROLE: ${displayRole}</span>
+      <span>${displayRole}</span>
     `;
 
     const notificationBtn = header.querySelector('button[class*="ph-bell"]');

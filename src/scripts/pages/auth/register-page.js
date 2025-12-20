@@ -1,4 +1,4 @@
-// src/scripts/pages/auth/register-page.js (COMPLETE FIXED VERSION)
+// File: src/scripts/pages/auth/register-page.js
 import { API } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
@@ -62,7 +62,6 @@ export default class RegisterPage {
                         </div>
                     </div>
 
-                    <!-- VENDOR TYPE FIELD (Conditional) -->
                     <div id="vendor-type-container" class="hidden">
                         <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">
                             TIPE VENDOR <span class="text-red-500">*</span>
@@ -74,7 +73,7 @@ export default class RegisterPage {
                         </select>
                         <p class="text-xs text-slate-600 font-bold mt-2">
                             <i class="ph-bold ph-info"></i> 
-                            Vendor Barang: Input BAPB | Vendor Jasa: Input BAPP
+                            Pilih sesuai spesialisasi perusahaan Anda
                         </p>
                     </div>
 
@@ -113,17 +112,13 @@ export default class RegisterPage {
     const toggleVendorType = () => {
       const selectedRole = roleSelect.value;
       
-      console.log('🔄 Role changed to:', selectedRole);
-
       if (selectedRole === 'vendor') {
         vendorTypeContainer.classList.remove('hidden');
         vendorTypeSelect.required = true;
-        console.log('✅ Vendor type field shown and required');
       } else {
         vendorTypeContainer.classList.add('hidden');
         vendorTypeSelect.required = false;
         vendorTypeSelect.value = ''; // Clear selection
-        console.log('❌ Vendor type field hidden and not required');
       }
     };
 
@@ -146,51 +141,51 @@ export default class RegisterPage {
       const submitBtn = registerForm.querySelector('button[type="submit"]');
       const originalText = submitBtn.innerHTML;
 
-      const role = document.getElementById('role').value;
-      const vendorType = document.getElementById('vendorType').value;
+      // 1. Ambil nilai mentah dari form
+      let selectedRole = document.getElementById('role').value; 
+      const vendorType = document.getElementById('vendorType').value; 
 
-      // ============================================
-      // ✅ VALIDATION: Vendor must have vendorType
-      // ============================================
-      if (role === 'vendor' && !vendorType) {
+      // 2. Validasi UI: Jika Vendor dipilih tapi Tipe kosong
+      if (selectedRole === 'vendor' && !vendorType) {
         msgContainer.className = 'mb-6 p-4 border-2 border-red-500 bg-red-100 text-red-800 text-xs font-bold uppercase';
         msgContainer.innerText = 'GAGAL: VENDOR HARUS MEMILIH TIPE (BARANG ATAU JASA)';
         msgContainer.classList.remove('hidden');
         return;
       }
 
-      // ============================================
-      // ✅ BUILD FORM DATA
-      // ============================================
+      // 3. LOGIKA UTAMA: Ubah 'vendor' menjadi role spesifik
+      let finalRoleToSend = selectedRole;
+
+      if (selectedRole === 'vendor') {
+        if (vendorType === 'VENDOR_BARANG') {
+            finalRoleToSend = 'vendor_barang'; // <-- KITA PAKSA KE SINI
+        } else if (vendorType === 'VENDOR_JASA') {
+            finalRoleToSend = 'vendor_jasa';   // <-- KITA PAKSA KE SINI
+        }
+      }
+
+      // 4. Susun Payload
       const formData = {
         email: document.getElementById('email').value.toLowerCase().trim(),
         password: document.getElementById('password').value,
         name: document.getElementById('name').value.trim(),
-        role: role,
+        
+        // Di sini kuncinya: Role yang dikirim bukan lagi 'vendor', tapi 'vendor_barang'/'vendor_jasa'
+        role: finalRoleToSend, 
+        
         phone: document.getElementById('phone').value.trim(),
-        company: document.getElementById('company').value.trim()
+        company: document.getElementById('company').value.trim(),
+        
+        // Kita tetap kirim field tambahan untuk kompatibilitas database
+        ...(selectedRole === 'vendor' && { 
+            vendor_type: vendorType,
+            type: vendorType 
+        })
       };
 
-      // ============================================
-      // ✅ CRITICAL FIX: Send BOTH snake_case AND camelCase for backend compatibility
-      // Backend mungkin expect "vendor_type" (snake_case) atau "vendorType" (camelCase)
-      // ============================================
-      if (role === 'vendor' && vendorType) {
-        formData.vendor_type = vendorType; // ← Backend database field
-        formData.vendorType = vendorType;  // ← Backup camelCase
-        
-        console.log('🔐 VENDOR TYPE DETECTED:', {
-          vendor_type: vendorType,
-          vendorType: vendorType,
-          warning: 'Sending both formats for backend compatibility'
-        });
-      }
+      console.log('📤 Sending Registration Payload:', formData);
 
-      console.log('📤 Registration payload:', formData);
-
-      // ============================================
-      // ✅ SUBMIT TO API
-      // ============================================
+      // 5. Kirim ke API
       submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> MEMPROSES...';
       submitBtn.disabled = true;
       msgContainer.classList.add('hidden');
@@ -200,7 +195,6 @@ export default class RegisterPage {
         
         console.log('✅ Registration successful:', response);
 
-        // Success
         msgContainer.className = 'mb-6 p-4 border-2 border-lime-500 bg-lime-100 text-lime-800 text-xs font-bold uppercase';
         msgContainer.innerHTML = '<i class="ph-bold ph-check-circle text-lg mr-1 align-middle"></i> REGISTRASI BERHASIL! MENGALIHKAN KE LOGIN...';
         msgContainer.classList.remove('hidden');
@@ -212,9 +206,16 @@ export default class RegisterPage {
       } catch (error) {
         console.error('❌ Register Error:', error);
 
-        // Error
+        // Pesan Error Handling Khusus
+        let errorMsg = error.message;
+        
+        // Jika Backend menolak 'vendor_barang', kita beri pesan jelas ke user
+        if (errorMsg.includes('Invalid role') || errorMsg.includes('Must be one of')) {
+            errorMsg = `SISTEM MENOLAK ROLE: "${finalRoleToSend}". Mohon hubungi admin untuk update validasi Backend agar menerima role ini.`;
+        }
+
         msgContainer.className = 'mb-6 p-4 border-2 border-red-500 bg-red-100 text-red-800 text-xs font-bold uppercase';
-        msgContainer.innerText = `GAGAL: ${error.message}`;
+        msgContainer.innerText = `GAGAL: ${errorMsg}`;
         msgContainer.classList.remove('hidden');
 
         submitBtn.innerHTML = originalText;
