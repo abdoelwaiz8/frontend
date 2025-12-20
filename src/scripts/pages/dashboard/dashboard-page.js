@@ -261,79 +261,110 @@ export default class DashboardPage {
   /**
    * Render quick action buttons based on RBAC
    */
-  _renderQuickActions() {
-    const showBAPB = canAccessBAPB(this.userData);
-    const showBAPP = canAccessBAPP(this.userData);
-    const showApproval = canAccessApproval(this.userData);
+  // File: src/scripts/pages/dashboard/dashboard-page.js
+// UPDATE METHOD _renderQuickActions()
 
-    console.log('🎨 Quick Actions for:', { 
-      role: this.userData.role, 
-      showBAPB, 
-      showBAPP, 
-      showApproval 
-    });
+_renderQuickActions() {
+  const showBAPB = canAccessBAPB(this.userData);
+  const showBAPP = canAccessBAPP(this.userData);
+  const showApproval = canAccessApproval(this.userData);
 
-    const actions = [];
+  console.log('🎨 Quick Actions Visibility:', { 
+    role: this.userData.role, 
+    vendorType: this.userData.vendorType,
+    showBAPB, 
+    showBAPP, 
+    showApproval 
+  });
 
-    if (showBAPB) {
-      actions.push(`
-        <a href="#/bapb/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-          <div class="w-12 h-12 bg-blue-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-blue-400">
-            <i class="ph-bold ph-package text-white text-2xl"></i>
-          </div>
-          <div>
-            <p class="font-black text-sm uppercase tracking-tight">BUAT BAPB</p>
-            <p class="text-xs font-bold opacity-70">Input Barang</p>
-          </div>
-        </a>
-      `);
-    }
+  const actions = [];
 
-    if (showBAPP) {
-      actions.push(`
-        <a href="#/bapp/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-          <div class="w-12 h-12 bg-purple-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-purple-400">
-            <i class="ph-bold ph-briefcase text-white text-2xl"></i>
-          </div>
-          <div>
-            <p class="font-black text-sm uppercase tracking-tight">BUAT BAPP</p>
-            <p class="text-xs font-bold opacity-70">Input Jasa</p>
-          </div>
-        </a>
-      `);
-    }
-
-    // HANYA tampilkan approval jika user memiliki akses (bukan admin)
-    if (showApproval) {
-      actions.push(`
-        <a href="#/approval" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-          <div class="w-12 h-12 bg-lime-400 border-2 border-slate-900 flex items-center justify-center group-hover:bg-lime-500">
-            <i class="ph-bold ph-signature text-slate-900 text-2xl"></i>
-          </div>
-          <div>
-            <p class="font-black text-sm uppercase tracking-tight">APPROVAL</p>
-            <p class="text-xs font-bold opacity-70">Tanda Tangan</p>
-          </div>
-        </a>
-      `);
-    }
-
-    // Always show download
+  // ============================================
+  // ✅ HANYA tampilkan BAPB jika canAccessBAPB = true
+  // ============================================
+  if (showBAPB) {
+    console.log('➕ Adding BAPB quick action');
     actions.push(`
-      <a href="#/download" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-        <div class="w-12 h-12 bg-slate-700 border-2 border-slate-900 flex items-center justify-center group-hover:bg-slate-600">
-          <i class="ph-bold ph-download-simple text-white text-2xl"></i>
+      <a href="#/bapb/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+        <div class="w-12 h-12 bg-blue-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-blue-400">
+          <i class="ph-bold ph-package text-white text-2xl"></i>
         </div>
         <div>
-          <p class="font-black text-sm uppercase tracking-tight">DOWNLOAD</p>
-          <p class="text-xs font-bold opacity-70">Arsip Digital</p>
+          <p class="font-black text-sm uppercase tracking-tight">BUAT BAPB</p>
+          <p class="text-xs font-bold opacity-70">Input Barang</p>
         </div>
       </a>
     `);
-
-    return actions.join('');
   }
 
+  // ============================================
+  // ✅ HANYA tampilkan BAPP jika canAccessBAPP = true
+  // ============================================
+  if (showBAPP) {
+    console.log('➕ Adding BAPP quick action');
+    actions.push(`
+      <a href="#/bapp/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+        <div class="w-12 h-12 bg-purple-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-purple-400">
+          <i class="ph-bold ph-briefcase text-white text-2xl"></i>
+        </div>
+        <div>
+          <p class="font-black text-sm uppercase tracking-tight">BUAT BAPP</p>
+          <p class="text-xs font-bold opacity-70">Input Jasa</p>
+        </div>
+      </a>
+    `);
+  }
+
+  // ============================================
+  // HANYA tampilkan Approval jika bukan admin
+  // ============================================
+  if (showApproval) {
+    console.log('➕ Adding Approval quick action');
+    actions.push(`
+      <a href="#/approval" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+        <div class="w-12 h-12 bg-lime-400 border-2 border-slate-900 flex items-center justify-center group-hover:bg-lime-500">
+          <i class="ph-bold ph-signature text-slate-900 text-2xl"></i>
+        </div>
+        <div>
+          <p class="font-black text-sm uppercase tracking-tight">APPROVAL</p>
+          <p class="text-xs font-bold opacity-70">Tanda Tangan</p>
+        </div>
+      </a>
+    `);
+  }
+
+  // ============================================
+  // Always show Download untuk semua user
+  // ============================================
+  console.log('➕ Adding Download quick action');
+  actions.push(`
+    <a href="#/download" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+      <div class="w-12 h-12 bg-slate-700 border-2 border-slate-900 flex items-center justify-center group-hover:bg-slate-600">
+        <i class="ph-bold ph-download-simple text-white text-2xl"></i>
+      </div>
+      <div>
+        <p class="font-black text-sm uppercase tracking-tight">DOWNLOAD</p>
+        <p class="text-xs font-bold opacity-70">Arsip Digital</p>
+      </div>
+    </a>
+  `);
+
+  // ============================================
+  // ⚠️ Tampilkan pesan jika tidak ada action
+  // ============================================
+  if (actions.length === 0) {
+    console.warn('⚠️ No quick actions available for this user');
+    return `
+      <div class="col-span-3 p-8 text-center border-2 border-slate-200">
+        <i class="ph-bold ph-info text-4xl text-slate-400 mb-2"></i>
+        <p class="text-slate-600 font-bold">Tidak ada aksi yang tersedia untuk role Anda</p>
+      </div>
+    `;
+  }
+
+  console.log(`✅ Rendered ${actions.length} quick actions`);
+  return actions.join('');
+}
   /**
    * Render action items table rows
    */

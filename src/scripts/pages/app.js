@@ -1,4 +1,4 @@
-// File: src/scripts/pages/app.js
+// File: src/scripts/pages/app.js (UPDATE METHOD renderPage)
 import routes from '../routes/routes';
 import { getActiveRoute } from '../routes/url-parser';
 import { isAuthenticated, getUserData, clearAuthData } from '../utils/api-helper';
@@ -54,7 +54,9 @@ class App {
     const url = getActiveRoute();
     const authenticated = isAuthenticated();
 
+    // ============================================
     // AUTH GUARD
+    // ============================================
     if (!authenticated && url !== '/login' && url !== '/register') {
       window.location.hash = '#/login';
       return;
@@ -65,6 +67,78 @@ class App {
       return;
     }
 
+    // ============================================
+    // ✅ RBAC ROUTE GUARD
+    // Block vendor dari mengakses route yang tidak sesuai
+    // ============================================
+    if (authenticated) {
+      const userData = getUserData();
+      
+      if (userData && userData.role === 'vendor') {
+        console.log('🔍 RBAC Route Guard:', { 
+          url, 
+          role: userData.role, 
+          vendorType: userData.vendorType 
+        });
+
+        // ============================================
+        // BLOCK Vendor Barang dari semua route BAPP
+        // ============================================
+        if (userData.vendorType === 'VENDOR_BARANG') {
+          // Check jika URL mengandung /bapp di path
+          const urlPath = window.location.hash.replace('#', '');
+          
+          if (urlPath.startsWith('/bapp')) {
+            console.warn('🚫 RBAC: Vendor Barang diblokir dari BAPP route');
+            console.warn('🚫 Attempted URL:', urlPath);
+            
+            // Show alert
+            this._showAccessDeniedAlert(
+              'AKSES DITOLAK!',
+              'Vendor Barang tidak dapat mengakses menu BAPP (Jasa).',
+              'Anda hanya dapat mengakses menu BAPB (Barang).'
+            );
+            
+            // Redirect ke dashboard
+            window.location.hash = '#/';
+            return;
+          }
+        }
+
+        // ============================================
+        // BLOCK Vendor Jasa dari semua route BAPB
+        // ============================================
+        if (userData.vendorType === 'VENDOR_JASA') {
+          // Check jika URL mengandung /bapb di path
+          const urlPath = window.location.hash.replace('#', '');
+          
+          if (urlPath.startsWith('/bapb')) {
+            console.warn('🚫 RBAC: Vendor Jasa diblokir dari BAPB route');
+            console.warn('🚫 Attempted URL:', urlPath);
+            
+            // Show alert
+            this._showAccessDeniedAlert(
+              'AKSES DITOLAK!',
+              'Vendor Jasa tidak dapat mengakses menu BAPB (Barang).',
+              'Anda hanya dapat mengakses menu BAPP (Jasa).'
+            );
+            
+            // Redirect ke dashboard
+            window.location.hash = '#/';
+            return;
+          }
+        }
+
+        // ============================================
+        // Log successful route access
+        // ============================================
+        console.log('✅ RBAC: Route access allowed for vendor');
+      }
+    }
+
+    // ============================================
+    // RENDER PAGE
+    // ============================================
     const page = routes[url];
     if (!page) {
       this.#content.innerHTML = '<h2 class="text-center mt-10">Halaman tidak ditemukan (404)</h2>';
@@ -95,6 +169,46 @@ class App {
     if (authenticated && url !== '/login' && url !== '/register') {
       this._updateUIByRole();
     }
+  }
+
+  /**
+   * Show access denied alert
+   */
+  _showAccessDeniedAlert(title, message, hint) {
+    // Remove any existing alert
+    const existingAlert = document.getElementById('rbac-alert');
+    if (existingAlert) existingAlert.remove();
+
+    // Create alert
+    const alert = document.createElement('div');
+    alert.id = 'rbac-alert';
+    alert.className = 'fixed top-8 right-8 bg-red-500 border-4 border-slate-900 p-6 z-[9999] shadow-sharp max-w-md';
+    alert.innerHTML = `
+      <div class="flex items-start gap-4">
+        <div class="w-14 h-14 bg-slate-900 flex items-center justify-center flex-shrink-0">
+          <i class="ph-bold ph-lock text-red-500 text-3xl"></i>
+        </div>
+        <div class="flex-1">
+          <h4 class="font-black text-white mb-2 tracking-tight uppercase text-lg">${title}</h4>
+          <p class="text-sm text-white font-bold mb-2">${message}</p>
+          <p class="text-xs text-red-100 font-bold">${hint}</p>
+        </div>
+        <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-slate-200">
+          <i class="ph-bold ph-x text-2xl"></i>
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(alert);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      if (alert && alert.parentElement) {
+        alert.style.opacity = '0';
+        alert.style.transition = 'opacity 0.3s';
+        setTimeout(() => alert.remove(), 300);
+      }
+    }, 5000);
   }
 
   _updateActiveNav(url) {
@@ -131,8 +245,8 @@ class App {
   // Get Menu Elements
   const navInputGroup = document.getElementById('nav-input-group');
   const navApproval = document.getElementById('nav-approval');
-  const navAdminGroup = document.getElementById('nav-admin-group'); // NEW
-  const navPayment = document.getElementById('nav-payment'); // NEW
+  const navAdminGroup = document.getElementById('nav-admin-group');
+  const navPayment = document.getElementById('nav-payment');
   const bapbLink = document.querySelector('a[href="#/bapb"]');
   const bappLink = document.querySelector('a[href="#/bapp"]');
 
@@ -151,26 +265,55 @@ class App {
   
   console.log('🔍 Checking RBAC permissions...');
 
-  // Default: Hide all conditional menus
+  // ✅ DEFAULT: Hide ALL conditional menus first
   if (navInputGroup) navInputGroup.classList.add('hidden');
   if (navApproval) navApproval.classList.add('hidden');
-  if (navAdminGroup) navAdminGroup.classList.add('hidden'); // NEW
-  if (navPayment) navPayment.classList.add('hidden'); // NEW
-  if (bapbLink) bapbLink.parentElement?.classList.add('hidden');
-  if (bappLink) bappLink.parentElement?.classList.add('hidden');
+  if (navAdminGroup) navAdminGroup.classList.add('hidden');
+  if (navPayment) navPayment.classList.add('hidden');
+  
+  // ✅ Hide individual BAPB/BAPP links
+  if (bapbLink) {
+    const bapbParent = bapbLink.closest('.nav-item') || bapbLink.parentElement;
+    if (bapbParent) bapbParent.classList.add('hidden');
+  }
+  if (bappLink) {
+    const bappParent = bappLink.closest('.nav-item') || bappLink.parentElement;
+    if (bappParent) bappParent.classList.add('hidden');
+  }
+
+  // ===============================
+  // SHOW MENUS BASED ON PERMISSIONS
+  // ===============================
 
   // Check BAPB Access
   if (canAccessBAPB(userData)) {
     console.log('✅ BAPB access granted');
     if (navInputGroup) navInputGroup.classList.remove('hidden');
-    if (bapbLink) bapbLink.parentElement?.classList.remove('hidden');
+    if (bapbLink) {
+      const bapbParent = bapbLink.closest('.nav-item') || bapbLink.parentElement;
+      if (bapbParent) bapbParent.classList.remove('hidden');
+    }
   }
 
   // Check BAPP Access
   if (canAccessBAPP(userData)) {
     console.log('✅ BAPP access granted');
     if (navInputGroup) navInputGroup.classList.remove('hidden');
-    if (bappLink) bappLink.parentElement?.classList.remove('hidden');
+    if (bappLink) {
+      const bappParent = bappLink.closest('.nav-item') || bappLink.parentElement;
+      if (bappParent) bappParent.classList.remove('hidden');
+    }
+  }
+
+  // ✅ CRITICAL: If navInputGroup has NO visible children, hide it
+  if (navInputGroup) {
+    const visibleChildren = Array.from(navInputGroup.querySelectorAll('.nav-item'))
+      .filter(item => !item.classList.contains('hidden'));
+    
+    if (visibleChildren.length === 0) {
+      navInputGroup.classList.add('hidden');
+      console.log('ℹ️ No input menu items visible, hiding INPUT DOKUMEN group');
+    }
   }
 
   // Check Approval Access
@@ -179,8 +322,8 @@ class App {
     if (navApproval) navApproval.classList.remove('hidden');
   }
 
-  // NEW: Check Payment Access (Admin Only)
-  if (role === 'admin') {
+  // Check Payment Access (Admin Only)
+  if (canAccessPayment(userData)) {
     console.log('✅ Admin access - showing admin menu');
     if (navAdminGroup) navAdminGroup.classList.remove('hidden');
     if (navPayment) navPayment.classList.remove('hidden');
@@ -191,7 +334,6 @@ class App {
 
   console.log('✅ RBAC: UI updated successfully');
 }
-
   _showRoleBadge(userData) {
     const header = document.querySelector('header');
     if (!header) return;

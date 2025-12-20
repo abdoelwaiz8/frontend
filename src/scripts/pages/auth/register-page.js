@@ -1,4 +1,4 @@
-// File: src/scripts/pages/auth/register-page.js
+// src/scripts/pages/auth/register-page.js
 import { API } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
@@ -103,9 +103,6 @@ export default class RegisterPage {
     this._initRoleToggle();
   }
 
-  /**
-   * Show/hide vendor type field based on role selection
-   */
   _initRoleToggle() {
     const roleSelect = document.getElementById('role');
     const vendorTypeContainer = document.getElementById('vendor-type-container');
@@ -162,16 +159,16 @@ export default class RegisterPage {
 
       // Build form data
       const formData = {
-        email: document.getElementById('email').value.toLowerCase(),
+        email: document.getElementById('email').value.toLowerCase().trim(),
         password: document.getElementById('password').value,
-        name: document.getElementById('name').value,
+        name: document.getElementById('name').value.trim(),
         role: role,
-        phone: document.getElementById('phone').value,
-        company: document.getElementById('company').value
+        phone: document.getElementById('phone').value.trim(),
+        company: document.getElementById('company').value.trim()
       };
 
-      // Add vendorType only if role is vendor
-      if (role === 'vendor') {
+      // ✅ CRITICAL FIX: Add vendorType only if role is vendor AND vendorType is selected
+      if (role === 'vendor' && vendorType) {
         formData.vendorType = vendorType;
       }
 

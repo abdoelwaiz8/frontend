@@ -1,8 +1,15 @@
-// File: src/scripts/utils/rbac-helper.js (COMPLETE VERSION)
+// File: src/scripts/utils/rbac-helper.js (COMPLETE REWRITE)
 
 /**
  * RBAC Helper Functions
- * Mengatur akses berdasarkan role dan vendorType
+ * Role-Based Access Control untuk Signatul App
+ * 
+ * Rules:
+ * - Admin: Full access semua fitur
+ * - Vendor Barang: HANYA BAPB (Input & Sign)
+ * - Vendor Jasa: HANYA BAPP (Input & Sign)
+ * - PIC Gudang: BAPB Approval
+ * - Approver: BAPP Approval
  */
 
 /**
@@ -11,8 +18,8 @@
  * @returns {boolean}
  */
 export function canAccessBAPB(userData) {
-  if (!userData) {
-    console.warn('🔒 RBAC: userData is null or undefined');
+  if (!userData || !userData.role) {
+    console.warn('🔒 RBAC: Invalid userData - missing role');
     return false;
   }
 
@@ -20,18 +27,46 @@ export function canAccessBAPB(userData) {
   
   console.log('🔍 RBAC Check - BAPB Access:', { role, vendorType });
 
-  // Admin: full access
+  // ============================================
+  // RULE 1: Admin has full access
+  // ============================================
   if (role === 'admin') {
     console.log('✅ RBAC: Admin has BAPB access');
     return true;
   }
 
-  // Vendor Barang: access BAPB
-  if (role === 'vendor' && vendorType === 'VENDOR_BARANG') {
-    console.log('✅ RBAC: Vendor Barang has BAPB access');
+  // ============================================
+  // RULE 2: PIC Gudang can access BAPB for approval
+  // ============================================
+  if (role === 'pic_gudang') {
+    console.log('✅ RBAC: PIC Gudang has BAPB access');
     return true;
   }
 
+  // ============================================
+  // RULE 3: Vendor Barang can access BAPB
+  // ============================================
+  if (role === 'vendor') {
+    if (!vendorType) {
+      console.error('❌ RBAC: Vendor login WITHOUT vendorType! This should not happen!');
+      return false;
+    }
+
+    if (vendorType === 'VENDOR_BARANG') {
+      console.log('✅ RBAC: Vendor Barang has BAPB access');
+      return true;
+    } else if (vendorType === 'VENDOR_JASA') {
+      console.log('🚫 RBAC: Vendor Jasa BLOCKED from BAPB');
+      return false;
+    } else {
+      console.error('❌ RBAC: Unknown vendorType:', vendorType);
+      return false;
+    }
+  }
+
+  // ============================================
+  // RULE 4: All other roles - no access
+  // ============================================
   console.log('❌ RBAC: No BAPB access for', { role, vendorType });
   return false;
 }
@@ -42,8 +77,8 @@ export function canAccessBAPB(userData) {
  * @returns {boolean}
  */
 export function canAccessBAPP(userData) {
-  if (!userData) {
-    console.warn('🔒 RBAC: userData is null or undefined');
+  if (!userData || !userData.role) {
+    console.warn('🔒 RBAC: Invalid userData - missing role');
     return false;
   }
 
@@ -51,18 +86,46 @@ export function canAccessBAPP(userData) {
   
   console.log('🔍 RBAC Check - BAPP Access:', { role, vendorType });
 
-  // Admin: full access
+  // ============================================
+  // RULE 1: Admin has full access
+  // ============================================
   if (role === 'admin') {
     console.log('✅ RBAC: Admin has BAPP access');
     return true;
   }
 
-  // Vendor Jasa: access BAPP
-  if (role === 'vendor' && vendorType === 'VENDOR_JASA') {
-    console.log('✅ RBAC: Vendor Jasa has BAPP access');
+  // ============================================
+  // RULE 2: Approver can access BAPP for approval
+  // ============================================
+  if (role === 'approver') {
+    console.log('✅ RBAC: Approver has BAPP access');
     return true;
   }
 
+  // ============================================
+  // RULE 3: Vendor Jasa can access BAPP
+  // ============================================
+  if (role === 'vendor') {
+    if (!vendorType) {
+      console.error('❌ RBAC: Vendor login WITHOUT vendorType! This should not happen!');
+      return false;
+    }
+
+    if (vendorType === 'VENDOR_JASA') {
+      console.log('✅ RBAC: Vendor Jasa has BAPP access');
+      return true;
+    } else if (vendorType === 'VENDOR_BARANG') {
+      console.log('🚫 RBAC: Vendor Barang BLOCKED from BAPP');
+      return false;
+    } else {
+      console.error('❌ RBAC: Unknown vendorType:', vendorType);
+      return false;
+    }
+  }
+
+  // ============================================
+  // RULE 4: All other roles - no access
+  // ============================================
   console.log('❌ RBAC: No BAPP access for', { role, vendorType });
   return false;
 }
@@ -73,8 +136,8 @@ export function canAccessBAPP(userData) {
  * @returns {boolean}
  */
 export function canAccessApproval(userData) {
-  if (!userData) {
-    console.warn('🔒 RBAC: userData is null or undefined');
+  if (!userData || !userData.role) {
+    console.warn('🔒 RBAC: Invalid userData - missing role');
     return false;
   }
 
@@ -82,8 +145,10 @@ export function canAccessApproval(userData) {
   
   console.log('🔍 RBAC Check - Approval Access:', { role });
 
-  // HANYA Vendor, PIC Gudang, dan Approver yang bisa akses Approval
+  // ============================================
+  // RULE: HANYA Vendor, PIC Gudang, dan Approver
   // Admin TIDAK BISA akses approval page
+  // ============================================
   const hasAccess = ['vendor', 'pic_gudang', 'approver'].includes(role);
   
   if (hasAccess) {
@@ -101,8 +166,8 @@ export function canAccessApproval(userData) {
  * @returns {boolean}
  */
 export function canAccessPayment(userData) {
-  if (!userData) {
-    console.warn('🔒 RBAC: userData is null or undefined');
+  if (!userData || !userData.role) {
+    console.warn('🔒 RBAC: Invalid userData - missing role');
     return false;
   }
 
@@ -187,21 +252,83 @@ export function getUserDisplayInfo(userData) {
  * @returns {boolean}
  */
 export function isValidUserData(userData) {
-  if (!userData) return false;
+  if (!userData) {
+    console.warn('⚠️ RBAC: userData is null or undefined');
+    return false;
+  }
   
   const requiredFields = ['role', 'name', 'email'];
   const hasRequired = requiredFields.every(field => userData[field]);
   
   if (!hasRequired) {
     console.warn('⚠️ RBAC: Missing required fields in userData');
+    console.warn('⚠️ Required fields:', requiredFields);
+    console.warn('⚠️ Received userData:', userData);
     return false;
   }
 
-  // If vendor, must have vendorType
+  // ============================================
+  // ✅ VALIDATION: If vendor, MUST have vendorType
+  // ============================================
   if (userData.role === 'vendor' && !userData.vendorType) {
-    console.warn('⚠️ RBAC: Vendor must have vendorType');
+    console.error('❌ RBAC: Vendor must have vendorType');
+    console.error('❌ Received userData:', userData);
     return false;
   }
 
   return true;
+}
+
+/**
+ * Check if vendor can input BAPB
+ * @param {Object} userData 
+ * @returns {boolean}
+ */
+export function canInputBAPB(userData) {
+  if (!userData || userData.role !== 'vendor') return false;
+  return userData.vendorType === 'VENDOR_BARANG';
+}
+
+/**
+ * Check if vendor can input BAPP
+ * @param {Object} userData 
+ * @returns {boolean}
+ */
+export function canInputBAPP(userData) {
+  if (!userData || userData.role !== 'vendor') return false;
+  return userData.vendorType === 'VENDOR_JASA';
+}
+
+/**
+ * Check if user can sign BAPB
+ * @param {Object} userData 
+ * @returns {boolean}
+ */
+export function canSignBAPB(userData) {
+  if (!userData) return false;
+  
+  // Vendor Barang dapat sign BAPB
+  if (userData.role === 'vendor' && userData.vendorType === 'VENDOR_BARANG') return true;
+  
+  // PIC Gudang dapat sign BAPB
+  if (userData.role === 'pic_gudang') return true;
+  
+  return false;
+}
+
+/**
+ * Check if user can sign BAPP
+ * @param {Object} userData 
+ * @returns {boolean}
+ */
+export function canSignBAPP(userData) {
+  if (!userData) return false;
+  
+  // Vendor Jasa dapat sign BAPP
+  if (userData.role === 'vendor' && userData.vendorType === 'VENDOR_JASA') return true;
+  
+  // Approver dapat sign BAPP
+  if (userData.role === 'approver') return true;
+  
+  return false;
 }

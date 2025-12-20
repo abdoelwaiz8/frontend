@@ -1,4 +1,4 @@
-// File: src/scripts/pages/auth/login-page.js
+// src/scripts/pages/auth/login-page.js
 import { API, saveAuthData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
@@ -66,7 +66,7 @@ export default class LoginPage {
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const email = document.getElementById('email').value;
+      const email = document.getElementById('email').value.toLowerCase().trim();
       const password = document.getElementById('password').value;
       const submitBtn = loginForm.querySelector('button[type="submit"]');
       const originalText = submitBtn.innerHTML;
@@ -95,27 +95,43 @@ export default class LoginPage {
         // Extract user info
         const user = data.user || {};
         
-        console.log('👤 User Data:', user);
+        console.log('👤 Raw User Data dari API:', user);
+
+        // ✅ CRITICAL FIX: Handle vendorType dengan lebih robust
+        let vendorType = null;
+        
+        if (user.role === 'vendor') {
+          // Cek berbagai kemungkinan field vendorType dari API
+          vendorType = user.vendorType || user.vendor_type || user.type || null;
+          
+          console.log('🔍 Vendor Type Detection:', {
+            vendorType: user.vendorType,
+            vendor_type: user.vendor_type,
+            type: user.type,
+            final: vendorType
+          });
+          
+          // Jika vendor tapi tidak ada vendorType, set default atau throw error
+          if (!vendorType) {
+            console.warn('⚠️ Vendor login without vendorType - this should not happen');
+            throw new Error('Akun vendor tidak memiliki tipe yang valid. Silakan hubungi administrator.');
+          }
+        }
 
         // Build userData object
         const userData = {
+          id: user.id,
           name: user.name || email.split('@')[0],
           email: user.email || email,
           role: user.role || 'vendor',
-          vendorType: user.vendorType || user.vendor_type || null, // Support both formats
+          vendorType: vendorType, // ✅ Bisa null untuk non-vendor
           jobTitle: user.jobTitle || user.job_title || this._getDefaultJobTitle(user.role),
           initials: this._getInitials(user.name || email),
           company: user.company || null,
           phone: user.phone || null
         };
 
-        console.log('💾 Saving userData:', userData);
-
-        // Validate vendor has vendorType
-        if (userData.role === 'vendor' && !userData.vendorType) {
-          console.warn('⚠️ Vendor login without vendorType - setting default to VENDOR_BARANG');
-          userData.vendorType = 'VENDOR_BARANG'; // Default fallback
-        }
+        console.log('💾 Final userData to be saved:', userData);
 
         // Save to sessionStorage
         saveAuthData(data.token, userData);
@@ -155,9 +171,6 @@ export default class LoginPage {
     });
   }
 
-  /**
-   * Get default job title based on role
-   */
   _getDefaultJobTitle(role) {
     const titles = {
       'vendor': 'Vendor',
@@ -168,9 +181,6 @@ export default class LoginPage {
     return titles[role] || 'Staff';
   }
 
-  /**
-   * Generate initials from name
-   */
   _getInitials(name) {
     if (!name) return 'U';
     
