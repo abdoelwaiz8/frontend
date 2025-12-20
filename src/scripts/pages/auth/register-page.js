@@ -1,4 +1,4 @@
-// src/scripts/pages/auth/register-page.js
+// src/scripts/pages/auth/register-page.js (COMPLETE FIXED VERSION)
 import { API } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
@@ -149,7 +149,9 @@ export default class RegisterPage {
       const role = document.getElementById('role').value;
       const vendorType = document.getElementById('vendorType').value;
 
-      // Validate vendor must have vendorType
+      // ============================================
+      // ✅ VALIDATION: Vendor must have vendorType
+      // ============================================
       if (role === 'vendor' && !vendorType) {
         msgContainer.className = 'mb-6 p-4 border-2 border-red-500 bg-red-100 text-red-800 text-xs font-bold uppercase';
         msgContainer.innerText = 'GAGAL: VENDOR HARUS MEMILIH TIPE (BARANG ATAU JASA)';
@@ -157,7 +159,9 @@ export default class RegisterPage {
         return;
       }
 
-      // Build form data
+      // ============================================
+      // ✅ BUILD FORM DATA
+      // ============================================
       const formData = {
         email: document.getElementById('email').value.toLowerCase().trim(),
         password: document.getElementById('password').value,
@@ -167,14 +171,26 @@ export default class RegisterPage {
         company: document.getElementById('company').value.trim()
       };
 
-      // ✅ CRITICAL FIX: Add vendorType only if role is vendor AND vendorType is selected
+      // ============================================
+      // ✅ CRITICAL FIX: Send BOTH snake_case AND camelCase for backend compatibility
+      // Backend mungkin expect "vendor_type" (snake_case) atau "vendorType" (camelCase)
+      // ============================================
       if (role === 'vendor' && vendorType) {
-        formData.vendorType = vendorType;
+        formData.vendor_type = vendorType; // ← Backend database field
+        formData.vendorType = vendorType;  // ← Backup camelCase
+        
+        console.log('🔐 VENDOR TYPE DETECTED:', {
+          vendor_type: vendorType,
+          vendorType: vendorType,
+          warning: 'Sending both formats for backend compatibility'
+        });
       }
 
       console.log('📤 Registration payload:', formData);
 
-      // Loading state
+      // ============================================
+      // ✅ SUBMIT TO API
+      // ============================================
       submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> MEMPROSES...';
       submitBtn.disabled = true;
       msgContainer.classList.add('hidden');

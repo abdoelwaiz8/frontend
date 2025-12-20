@@ -1,4 +1,4 @@
-// src/scripts/pages/auth/login-page.js
+// src/scripts/pages/auth/login-page.js (COMPLETE FIXED VERSION)
 import { API, saveAuthData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
@@ -85,46 +85,93 @@ export default class LoginPage {
 
         console.log('📥 Login Response:', response);
 
-        // Extract data dari response
+        // ============================================
+        // ✅ EXTRACT DATA FROM RESPONSE
+        // ============================================
         const data = response.data || response;
 
         if (!data.token) {
           throw new Error('Token tidak ditemukan dalam response');
         }
 
-        // Extract user info
+        // ============================================
+        // ✅ EXTRACT USER INFO WITH ROBUST VENDOR TYPE DETECTION
+        // ============================================
         const user = data.user || {};
         
         console.log('👤 Raw User Data dari API:', user);
+        console.log('🔍 Checking vendor type fields:', {
+          vendorType: user.vendorType,
+          vendor_type: user.vendor_type,
+          type: user.type,
+          role: user.role
+        });
 
-        // ✅ CRITICAL FIX: Handle vendorType dengan lebih robust
+        // ============================================
+        // ✅ CRITICAL FIX: Handle vendorType dengan SANGAT robust
+        // ============================================
         let vendorType = null;
         
         if (user.role === 'vendor') {
-          // Cek berbagai kemungkinan field vendorType dari API
+          // ============================================
+          // ✅ PRIORITAS DETEKSI: Cek SEMUA kemungkinan field
+          // Backend mungkin pakai: vendorType, vendor_type, atau type
+          // ============================================
           vendorType = user.vendorType || user.vendor_type || user.type || null;
           
           console.log('🔍 Vendor Type Detection:', {
-            vendorType: user.vendorType,
-            vendor_type: user.vendor_type,
-            type: user.type,
-            final: vendorType
+            found_vendorType: user.vendorType,
+            found_vendor_type: user.vendor_type,
+            found_type: user.type,
+            final_result: vendorType
           });
           
-          // Jika vendor tapi tidak ada vendorType, set default atau throw error
+          // ============================================
+          // ⚠️ CRITICAL VALIDATION: Vendor MUST have vendorType
+          // ============================================
           if (!vendorType) {
-            console.warn('⚠️ Vendor login without vendorType - this should not happen');
+            console.error('❌ CRITICAL ERROR: Vendor login without vendorType');
+            console.error('❌ This should NEVER happen. Check backend response.');
+            console.error('❌ Raw user object:', JSON.stringify(user, null, 2));
             throw new Error('Akun vendor tidak memiliki tipe yang valid. Silakan hubungi administrator.');
           }
+          
+          // ============================================
+          // ✅ NORMALIZE FORMAT: Ensure consistent format
+          // Convert: "barang" → "VENDOR_BARANG", "jasa" → "VENDOR_JASA"
+          // ============================================
+          if (vendorType && !vendorType.startsWith('VENDOR_')) {
+            const original = vendorType;
+            
+            if (vendorType.toLowerCase() === 'barang') {
+              vendorType = 'VENDOR_BARANG';
+              console.log(`🔄 Normalized vendorType: "${original}" → "VENDOR_BARANG"`);
+            } else if (vendorType.toLowerCase() === 'jasa') {
+              vendorType = 'VENDOR_JASA';
+              console.log(`🔄 Normalized vendorType: "${original}" → "VENDOR_JASA"`);
+            } else {
+              // If format unknown, try to uppercase and add prefix
+              console.warn(`⚠️ Unknown vendorType format: "${original}"`);
+              vendorType = `VENDOR_${vendorType.toUpperCase()}`;
+              console.log(`🔄 Attempted normalization: "${original}" → "${vendorType}"`);
+            }
+          }
+          
+          console.log('✅ Final vendorType after normalization:', vendorType);
+          
+        } else {
+          console.log('ℹ️ Not a vendor role, vendorType set to null');
         }
 
-        // Build userData object
+        // ============================================
+        // ✅ BUILD USERDATA OBJECT
+        // ============================================
         const userData = {
           id: user.id,
           name: user.name || email.split('@')[0],
           email: user.email || email,
           role: user.role || 'vendor',
-          vendorType: vendorType, // ✅ Bisa null untuk non-vendor
+          vendorType: vendorType, // ✅ NULL untuk non-vendor, WAJIB ADA untuk vendor
           jobTitle: user.jobTitle || user.job_title || this._getDefaultJobTitle(user.role),
           initials: this._getInitials(user.name || email),
           company: user.company || null,
@@ -132,8 +179,25 @@ export default class LoginPage {
         };
 
         console.log('💾 Final userData to be saved:', userData);
+        console.log('🔑 Critical Fields Check:', {
+          role: userData.role,
+          vendorType: userData.vendorType,
+          isVendor: userData.role === 'vendor',
+          hasVendorType: !!userData.vendorType,
+          isValid: userData.role !== 'vendor' || !!userData.vendorType
+        });
 
-        // Save to sessionStorage
+        // ============================================
+        // ✅ FINAL VALIDATION BEFORE SAVE
+        // ============================================
+        if (userData.role === 'vendor' && !userData.vendorType) {
+          console.error('❌ FINAL VALIDATION FAILED: Vendor userData has null vendorType');
+          throw new Error('Error sistem: Vendor type tidak terdeteksi. Silakan hubungi administrator.');
+        }
+
+        // ============================================
+        // ✅ SAVE TO SESSION STORAGE
+        // ============================================
         saveAuthData(data.token, userData);
 
         console.log('✅ Login successful - userData saved to sessionStorage');
@@ -141,12 +205,13 @@ export default class LoginPage {
         console.log('📋 Role:', userData.role);
         console.log('🏷️ Vendor Type:', userData.vendorType);
 
-        // Show success
+        // ============================================
+        // ✅ SHOW SUCCESS & REDIRECT
+        // ============================================
         msgContainer.className = 'mb-4 p-4 border-2 border-lime-500 bg-lime-100 text-lime-800 text-xs font-bold uppercase';
         msgContainer.innerText = 'LOGIN BERHASIL! MENGALIHKAN...';
         msgContainer.classList.remove('hidden');
 
-        // Redirect
         setTimeout(() => {
           window.location.hash = '#/';
           window.location.reload();

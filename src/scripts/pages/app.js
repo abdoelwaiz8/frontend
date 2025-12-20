@@ -1,4 +1,4 @@
-// File: src/scripts/pages/app.js (UPDATE METHOD renderPage)
+// File: src/scripts/pages/app.js (COMPLETE FIXED - SECURITY CRITICAL)
 import routes from '../routes/routes';
 import { getActiveRoute } from '../routes/url-parser';
 import { isAuthenticated, getUserData, clearAuthData } from '../utils/api-helper';
@@ -6,6 +6,7 @@ import {
   canAccessBAPB, 
   canAccessBAPP, 
   canAccessApproval,
+  canAccessPayment,
   getUserDisplayInfo,
   isValidUserData
 } from '../utils/rbac-helper';
@@ -68,7 +69,7 @@ class App {
     }
 
     // ============================================
-    // ✅ RBAC ROUTE GUARD
+    // ✅ RBAC ROUTE GUARD - GATEKEEPER (SECURITY CRITICAL!)
     // Block vendor dari mengakses route yang tidak sesuai
     // ============================================
     if (authenticated) {
@@ -81,63 +82,64 @@ class App {
           vendorType: userData.vendorType 
         });
 
+        // Get full URL path (bukan hanya route pattern)
+        const urlPath = window.location.hash.replace('#', '');
+        
         // ============================================
-        // BLOCK Vendor Barang dari semua route BAPP
+        // 🚨 CRITICAL RULE 1: BLOCK Vendor Barang dari SEMUA route BAPP
         // ============================================
         if (userData.vendorType === 'VENDOR_BARANG') {
           // Check jika URL mengandung /bapp di path
-          const urlPath = window.location.hash.replace('#', '');
-          
-          if (urlPath.startsWith('/bapp')) {
-            console.warn('🚫 RBAC: Vendor Barang diblokir dari BAPP route');
-            console.warn('🚫 Attempted URL:', urlPath);
+          if (urlPath.includes('/bapp')) {
+            console.error('🚫 RBAC BLOCKED: Vendor Barang mencoba akses BAPP');
+            console.error('🚫 Attempted URL:', urlPath);
+            console.error('🚫 User:', userData);
             
-            // Show alert
+            // Show blocking alert
             this._showAccessDeniedAlert(
               'AKSES DITOLAK!',
               'Vendor Barang tidak dapat mengakses menu BAPP (Jasa).',
               'Anda hanya dapat mengakses menu BAPB (Barang).'
             );
             
-            // Redirect ke dashboard
+            // FORCE redirect ke dashboard
             window.location.hash = '#/';
-            return;
+            return; // ← STOP execution
           }
         }
 
         // ============================================
-        // BLOCK Vendor Jasa dari semua route BAPB
+        // 🚨 CRITICAL RULE 2: BLOCK Vendor Jasa dari SEMUA route BAPB
         // ============================================
         if (userData.vendorType === 'VENDOR_JASA') {
           // Check jika URL mengandung /bapb di path
-          const urlPath = window.location.hash.replace('#', '');
-          
-          if (urlPath.startsWith('/bapb')) {
-            console.warn('🚫 RBAC: Vendor Jasa diblokir dari BAPB route');
-            console.warn('🚫 Attempted URL:', urlPath);
+          if (urlPath.includes('/bapb')) {
+            console.error('🚫 RBAC BLOCKED: Vendor Jasa mencoba akses BAPB');
+            console.error('🚫 Attempted URL:', urlPath);
+            console.error('🚫 User:', userData);
             
-            // Show alert
+            // Show blocking alert
             this._showAccessDeniedAlert(
               'AKSES DITOLAK!',
               'Vendor Jasa tidak dapat mengakses menu BAPB (Barang).',
               'Anda hanya dapat mengakses menu BAPP (Jasa).'
             );
             
-            // Redirect ke dashboard
+            // FORCE redirect ke dashboard
             window.location.hash = '#/';
-            return;
+            return; // ← STOP execution
           }
         }
 
         // ============================================
-        // Log successful route access
+        // ✅ Log successful route access
         // ============================================
         console.log('✅ RBAC: Route access allowed for vendor');
       }
     }
 
     // ============================================
-    // RENDER PAGE
+    // RENDER PAGE (Only if passed all guards)
     // ============================================
     const page = routes[url];
     if (!page) {
@@ -172,7 +174,9 @@ class App {
   }
 
   /**
-   * Show access denied alert
+   * ============================================
+   * ✅ SHOW ACCESS DENIED ALERT
+   * ============================================
    */
   _showAccessDeniedAlert(title, message, hint) {
     // Remove any existing alert
@@ -221,119 +225,125 @@ class App {
     });
   }
 
+  /**
+   * ============================================
+   * ✅ UPDATE UI BY ROLE (RBAC Compliant)
+   * ============================================
+   */
   _updateUIByRole() {
-  const userData = getUserData();
-  
-  if (!userData) {
-    console.error('❌ RBAC: No userData found in sessionStorage');
-    return;
-  }
+    const userData = getUserData();
+    
+    if (!userData) {
+      console.error('❌ RBAC: No userData found in sessionStorage');
+      return;
+    }
 
-  console.log('🔐 RBAC: Updating UI for user:', userData);
+    console.log('🔐 RBAC: Updating UI for user:', userData);
 
-  // Validate userData
-  if (!isValidUserData(userData)) {
-    console.error('❌ RBAC: Invalid userData structure');
-    this._showInvalidUserDataError();
-    return;
-  }
+    // Validate userData
+    if (!isValidUserData(userData)) {
+      console.error('❌ RBAC: Invalid userData structure');
+      this._showInvalidUserDataError();
+      return;
+    }
 
-  const { role, vendorType, name, jobTitle, initials } = userData;
+    const { role, vendorType, name, jobTitle, initials } = userData;
 
-  console.log('👤 User Info:', { role, vendorType, name, jobTitle });
+    console.log('👤 User Info:', { role, vendorType, name, jobTitle });
 
-  // Get Menu Elements
-  const navInputGroup = document.getElementById('nav-input-group');
-  const navApproval = document.getElementById('nav-approval');
-  const navAdminGroup = document.getElementById('nav-admin-group');
-  const navPayment = document.getElementById('nav-payment');
-  const bapbLink = document.querySelector('a[href="#/bapb"]');
-  const bappLink = document.querySelector('a[href="#/bapp"]');
+    // Get Menu Elements
+    const navInputGroup = document.getElementById('nav-input-group');
+    const navApproval = document.getElementById('nav-approval');
+    const navAdminGroup = document.getElementById('nav-admin-group');
+    const navPayment = document.getElementById('nav-payment');
+    const bapbLink = document.querySelector('a[href="#/bapb"]');
+    const bappLink = document.querySelector('a[href="#/bapp"]');
 
-  // Update Profile Card
-  const profileName = document.getElementById('profile-name');
-  const profileJob = document.getElementById('profile-job');
-  const profileInitials = document.getElementById('profile-initials');
+    // Update Profile Card
+    const profileName = document.getElementById('profile-name');
+    const profileJob = document.getElementById('profile-job');
+    const profileInitials = document.getElementById('profile-initials');
 
-  if (profileName) profileName.textContent = name || 'User';
-  if (profileJob) profileJob.textContent = jobTitle || 'Staff';
-  if (profileInitials) profileInitials.textContent = initials || 'U';
+    if (profileName) profileName.textContent = name || 'User';
+    if (profileJob) profileJob.textContent = jobTitle || 'Staff';
+    if (profileInitials) profileInitials.textContent = initials || 'U';
 
-  // ===============================
-  // RBAC LOGIC - Menu Visibility
-  // ===============================
-  
-  console.log('🔍 Checking RBAC permissions...');
+    // ===============================
+    // RBAC LOGIC - Menu Visibility
+    // ===============================
+    
+    console.log('🔍 Checking RBAC permissions...');
 
-  // ✅ DEFAULT: Hide ALL conditional menus first
-  if (navInputGroup) navInputGroup.classList.add('hidden');
-  if (navApproval) navApproval.classList.add('hidden');
-  if (navAdminGroup) navAdminGroup.classList.add('hidden');
-  if (navPayment) navPayment.classList.add('hidden');
-  
-  // ✅ Hide individual BAPB/BAPP links
-  if (bapbLink) {
-    const bapbParent = bapbLink.closest('.nav-item') || bapbLink.parentElement;
-    if (bapbParent) bapbParent.classList.add('hidden');
-  }
-  if (bappLink) {
-    const bappParent = bappLink.closest('.nav-item') || bappLink.parentElement;
-    if (bappParent) bappParent.classList.add('hidden');
-  }
-
-  // ===============================
-  // SHOW MENUS BASED ON PERMISSIONS
-  // ===============================
-
-  // Check BAPB Access
-  if (canAccessBAPB(userData)) {
-    console.log('✅ BAPB access granted');
-    if (navInputGroup) navInputGroup.classList.remove('hidden');
+    // ✅ DEFAULT: Hide ALL conditional menus first
+    if (navInputGroup) navInputGroup.classList.add('hidden');
+    if (navApproval) navApproval.classList.add('hidden');
+    if (navAdminGroup) navAdminGroup.classList.add('hidden');
+    if (navPayment) navPayment.classList.add('hidden');
+    
+    // ✅ Hide individual BAPB/BAPP links
     if (bapbLink) {
       const bapbParent = bapbLink.closest('.nav-item') || bapbLink.parentElement;
-      if (bapbParent) bapbParent.classList.remove('hidden');
+      if (bapbParent) bapbParent.classList.add('hidden');
     }
-  }
-
-  // Check BAPP Access
-  if (canAccessBAPP(userData)) {
-    console.log('✅ BAPP access granted');
-    if (navInputGroup) navInputGroup.classList.remove('hidden');
     if (bappLink) {
       const bappParent = bappLink.closest('.nav-item') || bappLink.parentElement;
-      if (bappParent) bappParent.classList.remove('hidden');
+      if (bappParent) bappParent.classList.add('hidden');
     }
-  }
 
-  // ✅ CRITICAL: If navInputGroup has NO visible children, hide it
-  if (navInputGroup) {
-    const visibleChildren = Array.from(navInputGroup.querySelectorAll('.nav-item'))
-      .filter(item => !item.classList.contains('hidden'));
-    
-    if (visibleChildren.length === 0) {
-      navInputGroup.classList.add('hidden');
-      console.log('ℹ️ No input menu items visible, hiding INPUT DOKUMEN group');
+    // ===============================
+    // SHOW MENUS BASED ON PERMISSIONS
+    // ===============================
+
+    // Check BAPB Access
+    if (canAccessBAPB(userData)) {
+      console.log('✅ BAPB access granted');
+      if (navInputGroup) navInputGroup.classList.remove('hidden');
+      if (bapbLink) {
+        const bapbParent = bapbLink.closest('.nav-item') || bapbLink.parentElement;
+        if (bapbParent) bapbParent.classList.remove('hidden');
+      }
     }
+
+    // Check BAPP Access
+    if (canAccessBAPP(userData)) {
+      console.log('✅ BAPP access granted');
+      if (navInputGroup) navInputGroup.classList.remove('hidden');
+      if (bappLink) {
+        const bappParent = bappLink.closest('.nav-item') || bappLink.parentElement;
+        if (bappParent) bappParent.classList.remove('hidden');
+      }
+    }
+
+    // ✅ CRITICAL: If navInputGroup has NO visible children, hide it
+    if (navInputGroup) {
+      const visibleChildren = Array.from(navInputGroup.querySelectorAll('.nav-item'))
+        .filter(item => !item.classList.contains('hidden'));
+      
+      if (visibleChildren.length === 0) {
+        navInputGroup.classList.add('hidden');
+        console.log('ℹ️ No input menu items visible, hiding INPUT DOKUMEN group');
+      }
+    }
+
+    // Check Approval Access
+    if (canAccessApproval(userData)) {
+      console.log('✅ Approval access granted');
+      if (navApproval) navApproval.classList.remove('hidden');
+    }
+
+    // Check Payment Access (Admin Only)
+    if (canAccessPayment(userData)) {
+      console.log('✅ Admin access - showing admin menu');
+      if (navAdminGroup) navAdminGroup.classList.remove('hidden');
+      if (navPayment) navPayment.classList.remove('hidden');
+    }
+
+    // Show Role Badge
+    this._showRoleBadge(userData);
+
+    console.log('✅ RBAC: UI updated successfully');
   }
 
-  // Check Approval Access
-  if (canAccessApproval(userData)) {
-    console.log('✅ Approval access granted');
-    if (navApproval) navApproval.classList.remove('hidden');
-  }
-
-  // Check Payment Access (Admin Only)
-  if (canAccessPayment(userData)) {
-    console.log('✅ Admin access - showing admin menu');
-    if (navAdminGroup) navAdminGroup.classList.remove('hidden');
-    if (navPayment) navPayment.classList.remove('hidden');
-  }
-
-  // Show Role Badge
-  this._showRoleBadge(userData);
-
-  console.log('✅ RBAC: UI updated successfully');
-}
   _showRoleBadge(userData) {
     const header = document.querySelector('header');
     if (!header) return;
