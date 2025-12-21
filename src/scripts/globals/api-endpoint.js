@@ -1,4 +1,3 @@
-// File: src/scripts/globals/api-endpoint.js (COMPLETE VERSION)
 import CONFIG from '../config';
 
 const API_ENDPOINT = {
@@ -31,7 +30,7 @@ const API_ENDPOINT = {
   SIGN_BAPB_PIC_GUDANG: (id) => `${CONFIG.BASE_URL}/bapb/${id}/sign/pic-gudang`,
   
   // BAPB Download
-  DOWNLOAD_BAPB: (id) => `${CONFIG.BASE_URL}/bapb/${id}/download`,
+  DOWNLOAD_BAPB: (id) => `${CONFIG.BASE_URL}/documents/bapb/${id}/pdf`,
 
   // ============================================
   // BAPP ENDPOINTS (Vendor Jasa)
@@ -47,7 +46,7 @@ const API_ENDPOINT = {
   SIGN_BAPP_APPROVER: (id) => `${CONFIG.BASE_URL}/bapp/${id}/sign/approver`,
   
   // BAPP Download
-  DOWNLOAD_BAPP: (id) => `${CONFIG.BASE_URL}/bapp/${id}/download`,
+  DOWNLOAD_BAPP: (id) => `${CONFIG.BASE_URL}/documents/bapp/${id}/pdf`,
 
   // ============================================
   // APPROVAL ENDPOINTS (Generic for both types)

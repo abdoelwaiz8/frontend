@@ -1,4 +1,3 @@
-// File: src/scripts/utils/api-helper.js (CORRECTED VERSION)
 import CONFIG from '../config';
 import API_ENDPOINT from '../globals/api-endpoint';
 

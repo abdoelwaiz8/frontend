@@ -1,7 +1,7 @@
-// File: src/scripts/pages/dashboard/dashboard-page.js (COMPLETE FIXED VERSION)
+// File: src/scripts/pages/dashboard/dashboard-page.js
 import { API, getUserData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
-import { canAccessBAPB, canAccessBAPP, canAccessApproval } from '../../utils/rbac-helper';
+import { canAccessBAPB, canAccessBAPP, normalizeVendorType } from '../../utils/rbac-helper';
 
 export default class DashboardPage {
   constructor() {
@@ -41,6 +41,7 @@ export default class DashboardPage {
   async _loadDashboardData() {
     try {
       // Determine what data to fetch based on RBAC
+      // Admin, PIC, Approver usually can see lists (Read Access)
       const shouldFetchBAPB = canAccessBAPB(this.userData);
       const shouldFetchBAPP = canAccessBAPP(this.userData);
 
@@ -106,12 +107,6 @@ export default class DashboardPage {
   _calculateStats(bapb, bapp) {
     const allDocs = [...bapb, ...bapp];
 
-    console.log('📊 Calculating stats from:', {
-      bapb: bapb.length,
-      bapp: bapp.length,
-      total: allDocs.length
-    });
-
     const pendingApproval = allDocs.filter(
       d => d.status === 'PENDING' || d.status === 'submitted' || d.status === 'in_review'
     ).length;
@@ -132,27 +127,21 @@ export default class DashboardPage {
       );
     }).length;
 
-    const stats = {
+    return {
       totalDocuments: allDocs.length,
       pendingApproval,
       completedThisMonth,
       monthlyIncrease: '—',
     };
-
-    console.log('📊 Stats calculated:', stats);
-
-    return stats;
   }
 
   /**
    * Build action items (documents needing attention)
    */
   _buildActionItems(bapb, bapp) {
-    console.log('🔨 Building action items...');
-
     const mapItem = (item, category) => {
       const docNumber = item.bapb_number || item.bapp_number || 
-                       item.order_number || item.document_number || 'N/A';
+                        item.order_number || item.document_number || 'N/A';
       
       return {
         id: item.id,
@@ -173,15 +162,7 @@ export default class DashboardPage {
       .filter(d => ['PENDING', 'DRAFT', 'submitted', 'in_review'].includes(d.status))
       .map(d => mapItem(d, 'BAPP'));
 
-    const actions = [...bapbActions, ...bappActions];
-
-    console.log('✅ Action items built:', {
-      bapb: bapbActions.length,
-      bapp: bappActions.length,
-      total: actions.length
-    });
-
-    return actions;
+    return [...bapbActions, ...bappActions];
   }
 
   /**
@@ -190,16 +171,7 @@ export default class DashboardPage {
   _renderDashboard(stats, actions) {
     const content = document.getElementById('main-content');
 
-    const { role, vendorType } = this.userData;
-    
-    // Determine which sections to show
-    const showBAPB = canAccessBAPB(this.userData);
-    const showBAPP = canAccessBAPP(this.userData);
-
-    console.log('🎨 Rendering dashboard with sections:', { showBAPB, showBAPP });
-
     content.innerHTML = `
-      <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="bg-white border-2 border-slate-900 p-7">
           <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">
@@ -223,7 +195,6 @@ export default class DashboardPage {
         </div>
       </div>
 
-      <!-- Quick Actions Section -->
       <div class="bg-white border-2 border-slate-900 mb-8">
         <div class="px-8 py-6 border-b-2 border-slate-900 bg-slate-50">
           <h3 class="font-black text-xl uppercase tracking-tight">AKSI CEPAT</h3>
@@ -233,7 +204,6 @@ export default class DashboardPage {
         </div>
       </div>
 
-      <!-- Action Needed Table -->
       <div class="bg-white border-2 border-slate-900">
         <div class="px-8 py-6 border-b-2 border-slate-900 bg-slate-50">
           <h3 class="font-black text-xl uppercase tracking-tight">ACTION NEEDED</h3>
@@ -258,110 +228,105 @@ export default class DashboardPage {
     `;
   }
 
-  
-_renderQuickActions() {
-  const showBAPB = canAccessBAPB(this.userData);
-  const showBAPP = canAccessBAPP(this.userData);
-  const showApproval = canAccessApproval(this.userData);
+  _renderQuickActions() {
+    const role = this.userData.role;
+    // Gunakan normalizeVendorType untuk memastikan format (VENDOR_BARANG/VENDOR_JASA)
+    const vendorType = normalizeVendorType(this.userData.vendorType);
 
-  console.log('🎨 Quick Actions Visibility:', { 
-    role: this.userData.role, 
-    vendorType: this.userData.vendorType,
-    showBAPB, 
-    showBAPP, 
-    showApproval 
-  });
+    const actions = [];
 
-  const actions = [];
+    // --- LOGIKA PERMISSION KARTU ---
 
-  
-  // BAPB - Hanya untuk Vendor Barang, PIC Gudang, dan Admin
-  if (showBAPB) {
-    console.log('➕ Adding BAPB quick action');
+    // 1. KARTU BUAT BAPB (Hanya Vendor Barang)
+    // Admin & PIC tidak boleh lihat ini
+    if (role === 'vendor' && vendorType === 'VENDOR_BARANG') {
+      actions.push(`
+        <a href="#/bapb/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+          <div class="w-12 h-12 bg-blue-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-blue-400">
+            <i class="ph-bold ph-package text-white text-2xl"></i>
+          </div>
+          <div>
+            <p class="font-black text-sm uppercase tracking-tight">BUAT BAPB</p>
+            <p class="text-xs font-bold opacity-70">Input Barang</p>
+          </div>
+        </a>
+      `);
+    }
+
+    // 2. KARTU BUAT BAPP (Hanya Vendor Jasa)
+    // Admin & Approver tidak boleh lihat ini
+    if (role === 'vendor' && vendorType === 'VENDOR_JASA') {
+      actions.push(`
+        <a href="#/bapp/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+          <div class="w-12 h-12 bg-purple-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-purple-400">
+            <i class="ph-bold ph-briefcase text-white text-2xl"></i>
+          </div>
+          <div>
+            <p class="font-black text-sm uppercase tracking-tight">BUAT BAPP</p>
+            <p class="text-xs font-bold opacity-70">Input Jasa</p>
+          </div>
+        </a>
+      `);
+    }
+
+    // 3. KARTU APPROVAL (Hanya PIC Gudang & Approver)
+    // Vendor dan Admin TIDAK BOLEH lihat ini
+    if (role === 'pic_gudang' || role === 'approver') {
+      actions.push(`
+        <a href="#/approval" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+          <div class="w-12 h-12 bg-lime-400 border-2 border-slate-900 flex items-center justify-center group-hover:bg-lime-500">
+            <i class="ph-bold ph-signature text-slate-900 text-2xl"></i>
+          </div>
+          <div>
+            <p class="font-black text-sm uppercase tracking-tight">APPROVAL</p>
+            <p class="text-xs font-bold opacity-70">Tanda Tangan</p>
+          </div>
+        </a>
+      `);
+    }
+
+    // 4. KARTU PAYMENT (Hanya Admin)
+    if (role === 'admin') {
+      actions.push(`
+        <a href="#/payment" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+          <div class="w-12 h-12 bg-emerald-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-emerald-400">
+            <i class="ph-bold ph-credit-card text-white text-2xl"></i>
+          </div>
+          <div>
+            <p class="font-black text-sm uppercase tracking-tight">PAYMENT</p>
+            <p class="text-xs font-bold opacity-70">Kelola Pembayaran</p>
+          </div>
+        </a>
+      `);
+    }
+
+    // 5. KARTU DOWNLOAD (Semua Role Bisa Akses)
+    // Admin, Vendor, PIC, Approver bisa download arsip
     actions.push(`
-      <a href="#/bapb/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-        <div class="w-12 h-12 bg-blue-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-blue-400">
-          <i class="ph-bold ph-package text-white text-2xl"></i>
+      <a href="#/download" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
+        <div class="w-12 h-12 bg-slate-700 border-2 border-slate-900 flex items-center justify-center group-hover:bg-slate-600">
+          <i class="ph-bold ph-download-simple text-white text-2xl"></i>
         </div>
         <div>
-          <p class="font-black text-sm uppercase tracking-tight">BUAT BAPB</p>
-          <p class="text-xs font-bold opacity-70">Input Barang</p>
+          <p class="font-black text-sm uppercase tracking-tight">DOWNLOAD</p>
+          <p class="text-xs font-bold opacity-70">Arsip Digital</p>
         </div>
       </a>
     `);
-  } else {
-    console.log('🚫 BAPB quick action BLOCKED for this user');
-  }
 
-  // BAPP - Hanya untuk Vendor Jasa, Approver, dan Admin
-  if (showBAPP) {
-    console.log('➕ Adding BAPP quick action');
-    actions.push(`
-      <a href="#/bapp/create" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-        <div class="w-12 h-12 bg-purple-500 border-2 border-slate-900 flex items-center justify-center group-hover:bg-purple-400">
-          <i class="ph-bold ph-briefcase text-white text-2xl"></i>
+    // Fallback jika tidak ada action sama sekali
+    if (actions.length === 0) {
+      return `
+        <div class="col-span-3 p-8 text-center border-2 border-red-500 bg-red-50">
+          <i class="ph-bold ph-warning text-4xl text-red-500 mb-2"></i>
+          <p class="text-red-700 font-bold">TIDAK ADA AKSI TERSEDIA</p>
+          <p class="text-xs text-red-600">Role: ${role}</p>
         </div>
-        <div>
-          <p class="font-black text-sm uppercase tracking-tight">BUAT BAPP</p>
-          <p class="text-xs font-bold opacity-70">Input Jasa</p>
-        </div>
-      </a>
-    `);
-  } else {
-    console.log('🚫 BAPP quick action BLOCKED for this user');
+      `;
+    }
+
+    return actions.join('');
   }
-
-  // Approval - Untuk Vendor, PIC Gudang, dan Approver (TIDAK untuk Admin)
-  if (showApproval) {
-    console.log('➕ Adding Approval quick action');
-    actions.push(`
-      <a href="#/approval" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-        <div class="w-12 h-12 bg-lime-400 border-2 border-slate-900 flex items-center justify-center group-hover:bg-lime-500">
-          <i class="ph-bold ph-signature text-slate-900 text-2xl"></i>
-        </div>
-        <div>
-          <p class="font-black text-sm uppercase tracking-tight">APPROVAL</p>
-          <p class="text-xs font-bold opacity-70">Tanda Tangan</p>
-        </div>
-      </a>
-    `);
-  } else {
-    console.log('ℹ️ Approval quick action not shown for this role');
-  }
-
-  // Download - Untuk SEMUA user
-  console.log('➕ Adding Download quick action (available for all)');
-  actions.push(`
-    <a href="#/download" class="group flex items-center gap-4 p-6 border-2 border-slate-900 hover:bg-slate-900 hover:text-white transition-all">
-      <div class="w-12 h-12 bg-slate-700 border-2 border-slate-900 flex items-center justify-center group-hover:bg-slate-600">
-        <i class="ph-bold ph-download-simple text-white text-2xl"></i>
-      </div>
-      <div>
-        <p class="font-black text-sm uppercase tracking-tight">DOWNLOAD</p>
-        <p class="text-xs font-bold opacity-70">Arsip Digital</p>
-      </div>
-    </a>
-  `);
-
-  // ============================================
-  // ⚠️ EDGE CASE: Jika tidak ada action sama sekali
-  // ============================================
-  if (actions.length === 0) {
-    console.error('⚠️ No quick actions available for this user');
-    console.error('⚠️ UserData:', this.userData);
-    return `
-      <div class="col-span-3 p-8 text-center border-2 border-red-500 bg-red-50">
-        <i class="ph-bold ph-warning text-4xl text-red-500 mb-2"></i>
-        <p class="text-red-700 font-bold">TIDAK ADA AKSI TERSEDIA</p>
-        <p class="text-xs text-red-600 mt-1">Role: ${this.userData.role} | Type: ${this.userData.vendorType || 'N/A'}</p>
-        <p class="text-xs text-red-600">Hubungi administrator jika ini tidak seharusnya terjadi</p>
-      </div>
-    `;
-  }
-
-  console.log(`✅ Rendered ${actions.length} quick actions for ${this.userData.role}`);
-  return actions.join('');
-}
 
   /**
    * Render action items table rows

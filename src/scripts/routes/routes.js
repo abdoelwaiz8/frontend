@@ -1,4 +1,3 @@
-// File: src/scripts/routes/routes.js
 import DashboardPage from '../pages/dashboard/dashboard-page';
 import LoginPage from '../pages/auth/login-page';
 import RegisterPage from '../pages/auth/register-page';
@@ -15,7 +14,6 @@ import BappViewPage from '../pages/bapp/bapp-view-page';
 
 // Approval Pages
 import ApprovalListPage from '../pages/approval/approval-page';
-import ApprovalDetailPage from '../pages/approval/approval-detail-page';
 
 // Download Page
 import DownloadPage from '../pages/document/download-page';
@@ -40,7 +38,6 @@ const routes = {
   '/bapp': new BappListPage(),
 
   // Approval Routes (PIC Gudang & Approver)
-  '/approval/:id': new ApprovalDetailPage(),
   '/approval': new ApprovalListPage(),
 
   // Download Route (All roles - completed documents only)

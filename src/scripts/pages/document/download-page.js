@@ -1,4 +1,3 @@
-// File: src/scripts/pages/document/download-page.js (FIXED VERSION)
 import { API, getAuthToken } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 

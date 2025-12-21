@@ -1,5 +1,6 @@
 import { API, getUserData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
+import { normalizeVendorType } from '../../utils/rbac-helper'; 
 
 export default class ApprovalListPage {
   constructor() {
@@ -19,145 +20,115 @@ export default class ApprovalListPage {
     `;
   }
 
-async afterRender() {
-  try {
-    const userData = getUserData();
-    this.userRole = userData?.role?.toLowerCase();
-    this.vendorType = userData?.vendorType;
+  async afterRender() {
+    try {
+      const userData = getUserData();
+      this.userRole = userData?.role?.toLowerCase();
+      this.vendorType = userData?.vendorType;
 
-    console.log('👤 User Info:', { 
-      role: this.userRole, 
-      vendorType: this.vendorType 
-    }); 
+      console.log('👤 User Info:', { 
+        role: this.userRole, 
+        vendorType: this.vendorType 
+      }); 
 
-    // Ambil data dari BAPB & BAPP endpoint
-    const [bapbResponse, bappResponse] = await Promise.all([
-      API.get(API_ENDPOINT.GET_BAPB_LIST).catch(err => {
-        console.error('Error fetching BAPB:', err);
-        return { data: [] };
-      }),
-      API.get(API_ENDPOINT.GET_BAPP_LIST).catch(err => {
-        console.error('Error fetching BAPP:', err);
-        return { data: [] };
-      })
-    ]);
+      // Ambil data dari BAPB & BAPP endpoint
+      const [bapbResponse, bappResponse] = await Promise.all([
+        API.get(API_ENDPOINT.GET_BAPB_LIST).catch(err => {
+          console.error('Error fetching BAPB:', err);
+          return { data: [] };
+        }),
+        API.get(API_ENDPOINT.GET_BAPP_LIST).catch(err => {
+          console.error('Error fetching BAPP:', err);
+          return { data: [] };
+        })
+      ]);
 
-    console.log('📦 BAPB Response:', bapbResponse); 
-    console.log('📦 BAPP Response:', bappResponse); 
+      const bapbList = (bapbResponse.data || bapbResponse || []).map(doc => ({
+        ...doc,
+        type: 'BAPB',
+        document_number: doc.bapb_number || doc.document_number
+      }));
 
-    const bapbList = (bapbResponse.data || bapbResponse || []).map(doc => ({
-      ...doc,
-      type: 'BAPB',
-      document_number: doc.bapb_number || doc.document_number
-    }));
+      const bappList = (bappResponse.data || bappResponse || []).map(doc => ({
+        ...doc,
+        type: 'BAPP',
+        document_number: doc.bapp_number || doc.document_number
+      }));
 
-    const bappList = (bappResponse.data || bappResponse || []).map(doc => ({
-      ...doc,
-      type: 'BAPP',
-      document_number: doc.bapp_number || doc.document_number
-    }));
+      // Gabungkan semua dokumen
+      const allDocuments = [...bapbList, ...bappList];
 
-    // Gabungkan semua dokumen
-    const allDocuments = [...bapbList, ...bappList];
+      // Filter berdasarkan role DAN status tanda tangan
+      this.documents = this._filterDocumentsByRole(allDocuments);
 
-    console.log('📋 All Documents:', allDocuments); 
+      console.log('✅ Filtered Documents for Approval:', this.documents); 
 
-    // Filter berdasarkan role DAN status tanda tangan
-    this.documents = this._filterDocumentsByRole(allDocuments);
-
-    console.log('✅ Filtered Documents for Approval:', this.documents); 
-
-    await this._renderList();
-    this._updatePageTitle();
-  } catch (error) {
-    console.error('Error loading approvals:', error);
-    this._showError('Gagal memuat daftar approval: ' + error.message);
-  }
-}
-
-_filterDocumentsByRole(documents) {
-  console.log('🔍 Filtering for role:', this.userRole);
-  console.log('🔍 Vendor Type:', this.vendorType);
-  
-  // Admin: lihat semua yang belum complete
-  if (this.userRole === 'admin') {
-    const filtered = documents.filter(doc => {
-      if (doc.type === 'BAPB') {
-        return !doc.vendor_signed || !doc.pic_gudang_signed;
-      }
-      if (doc.type === 'BAPP') {
-        return !doc.vendor_signed || !doc.approver_signed;
-      }
-      return false;
-    });
-    console.log('📦 Admin - All incomplete docs:', filtered);
-    return filtered;
+      await this._renderList();
+      this._updatePageTitle();
+    } catch (error) {
+      console.error('Error loading approvals:', error);
+      this._showError('Gagal memuat daftar approval: ' + error.message);
+    }
   }
 
-  // ============================================
-  // ✅ VENDOR FILTERING - Separate by type
-  // ============================================
-  if (this.userRole === 'vendor') {
-    // Normalize vendorType
-    const normalizedType = normalizeVendorType(this.vendorType);
-    
-    console.log('🔍 Vendor filtering with normalized type:', normalizedType);
-    
-    // Vendor Barang: hanya BAPB yang belum vendor sign
-    if (normalizedType === 'VENDOR_BARANG') {
-      const filtered = documents.filter(doc => 
-        doc.type === 'BAPB' && !doc.vendor_signed
-      );
-      console.log('📦 Vendor Barang - BAPB belum vendor sign:', filtered.length);
-      return filtered;
+  _filterDocumentsByRole(documents) {
+    // Admin: lihat semua yang belum complete
+    if (this.userRole === 'admin') {
+      return documents.filter(doc => {
+        if (doc.type === 'BAPB') return !doc.vendor_signed || !doc.pic_gudang_signed;
+        if (doc.type === 'BAPP') return !doc.vendor_signed || !doc.approver_signed;
+        return false;
+      });
     }
-    
-    // Vendor Jasa: hanya BAPP yang belum vendor sign
-    if (normalizedType === 'VENDOR_JASA') {
-      const filtered = documents.filter(doc => 
-        doc.type === 'BAPP' && !doc.vendor_signed
-      );
-      console.log('📦 Vendor Jasa - BAPP belum vendor sign:', filtered.length);
-      return filtered;
+
+    // ============================================
+    //              VENDOR FILTERING
+    // ============================================
+    if (this.userRole === 'vendor') {
+      // Gunakan normalizeVendorType yang sudah diimport
+      const normalizedType = normalizeVendorType(this.vendorType);
+      
+      // Vendor Barang: hanya BAPB yang belum vendor sign
+      if (normalizedType === 'VENDOR_BARANG') {
+        return documents.filter(doc => doc.type === 'BAPB' && !doc.vendor_signed);
+      }
+      
+      // Vendor Jasa: hanya BAPP yang belum vendor sign
+      if (normalizedType === 'VENDOR_JASA') {
+        return documents.filter(doc => doc.type === 'BAPP' && !doc.vendor_signed);
+      }
+      
+      return [];
     }
-    
-    // Unknown vendor type - return empty
-    console.warn('⚠️ Unknown vendor type, no documents shown');
+
+    // PIC Gudang: hanya BAPB yang sudah vendor sign tapi belum PIC sign
+    if (this.userRole === 'pic_gudang') {
+      return documents.filter(doc => 
+        doc.type === 'BAPB' && doc.vendor_signed && !doc.pic_gudang_signed
+      );
+    }
+
+    // Approver: hanya BAPP yang sudah vendor sign tapi belum approver sign
+    if (this.userRole === 'approver') {
+      return documents.filter(doc => 
+        doc.type === 'BAPP' && doc.vendor_signed && !doc.approver_signed
+      );
+    }
+
     return [];
   }
-
-  // PIC Gudang: hanya BAPB yang sudah vendor sign tapi belum PIC sign
-  if (this.userRole === 'pic_gudang') {
-    const filtered = documents.filter(doc => 
-      doc.type === 'BAPB' && doc.vendor_signed && !doc.pic_gudang_signed
-    );
-    console.log('📦 PIC Gudang - BAPB sudah vendor sign, belum PIC sign:', filtered.length);
-    return filtered;
-  }
-
-  // Approver: hanya BAPP yang sudah vendor sign tapi belum approver sign
-  if (this.userRole === 'approver') {
-    const filtered = documents.filter(doc => 
-      doc.type === 'BAPP' && doc.vendor_signed && !doc.approver_signed
-    );
-    console.log('📦 Approver - BAPP sudah vendor sign, belum approver sign:', filtered.length);
-    return filtered;
-  }
-
-  // Default: tidak ada akses
-  console.warn('⚠️ Unknown role or no access, no documents shown');
-  return [];
-}
 
   async _renderList() {
     const container = document.getElementById('main-content');
 
-    const roleLabel = {
-      'pic_gudang': 'PIC GUDANG',
-      'approver': 'APPROVER',
-      'admin': 'ADMINISTRATOR',
-      'vendor': this.vendorType === 'VENDOR_BARANG' ? 'VENDOR BARANG' : 'VENDOR JASA'
-    }[this.userRole] || 'USER';
+    // Tentukan label role user
+    let roleLabel = 'USER';
+    if (this.userRole === 'pic_gudang') roleLabel = 'PIC GUDANG';
+    else if (this.userRole === 'approver') roleLabel = 'APPROVER';
+    else if (this.userRole === 'admin') roleLabel = 'ADMIN';
+    else if (this.userRole === 'vendor') {
+        roleLabel = normalizeVendorType(this.vendorType) === 'VENDOR_BARANG' ? 'VENDOR BARANG' : 'VENDOR JASA';
+    }
 
     container.innerHTML = `
       <div class="flex flex-col md:flex-row md:justify-between md:items-start mb-8 gap-6">
@@ -201,37 +172,29 @@ _filterDocumentsByRole(documents) {
     }
 
     return this.documents.map(doc => {
-      // Mapping field dari API
       const docNumber = doc.document_number || doc.bapb_number || doc.bapp_number || 'N/A';
       const docType = doc.type?.toUpperCase() || (doc.bapb_number ? 'BAPB' : 'BAPP');
       const vendorName = doc.vendor?.name || doc.vendorName || 'Unknown Vendor';
       const createdDate = doc.created_at || doc.createdAt;
       const formattedDate = createdDate 
         ? new Date(createdDate).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
+            day: '2-digit', month: 'short', year: 'numeric'
           })
         : '-';
 
       const typeColor = docType === 'BAPB' ? 'blue-500' : 'purple-500';
       const typeIcon = docType === 'BAPB' ? 'ph-package' : 'ph-briefcase';
 
-      // Status tanda tangan untuk info tambahan
       let signatureStatus = '';
       if (docType === 'BAPB') {
-        if (!doc.vendor_signed) {
-          signatureStatus = 'Menunggu TTD Vendor';
-        } else if (!doc.pic_gudang_signed) {
-          signatureStatus = 'Menunggu TTD PIC Gudang';
-        }
+        if (!doc.vendor_signed) signatureStatus = 'Menunggu TTD Vendor';
+        else if (!doc.pic_gudang_signed) signatureStatus = 'Menunggu TTD PIC Gudang';
       } else if (docType === 'BAPP') {
-        if (!doc.vendor_signed) {
-          signatureStatus = 'Menunggu TTD Vendor';
-        } else if (!doc.approver_signed) {
-          signatureStatus = 'Menunggu TTD Approver';
-        }
+        if (!doc.vendor_signed) signatureStatus = 'Menunggu TTD Vendor';
+        else if (!doc.approver_signed) signatureStatus = 'Menunggu TTD Approver';
       }
+
+      const targetLink = `#/${docType.toLowerCase()}/${doc.id}`;
 
       return `
         <div class="group bg-white border-2 border-slate-900 hover-sharp transition-all overflow-hidden">
@@ -271,7 +234,7 @@ _filterDocumentsByRole(documents) {
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
-                        <a href="#/approval/${doc.id}" 
+                        <a href="${targetLink}" 
                            class="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs hover-sharp">
                             <i class="ph-fill ph-signature"></i> TANDA TANGAN
                         </a>
@@ -284,16 +247,19 @@ _filterDocumentsByRole(documents) {
   }
 
   _showError(msg) {
-    document.getElementById('main-content').innerHTML = `
-      <div class="bg-red-50 border-2 border-red-500 p-8 text-center">
-        <i class="ph-bold ph-warning text-5xl text-red-500 mb-4"></i>
-        <h3 class="font-black text-red-900 text-xl mb-2 uppercase">ERROR</h3>
-        <p class="text-red-700 font-bold mb-6">${msg}</p>
-        <a href="#/" class="inline-flex items-center gap-2 bg-red-500 text-white px-6 py-3 font-bold border-2 border-red-500">
-          <i class="ph-bold ph-arrow-left"></i> KEMBALI
-        </a>
-      </div>
-    `;
+    const container = document.getElementById('main-content');
+    if(container) {
+        container.innerHTML = `
+        <div class="bg-red-50 border-2 border-red-500 p-8 text-center">
+            <i class="ph-bold ph-warning text-5xl text-red-500 mb-4"></i>
+            <h3 class="font-black text-red-900 text-xl mb-2 uppercase">ERROR</h3>
+            <p class="text-red-700 font-bold mb-6">${msg}</p>
+            <a href="#/" class="inline-flex items-center gap-2 bg-red-500 text-white px-6 py-3 font-bold border-2 border-red-500">
+            <i class="ph-bold ph-arrow-left"></i> KEMBALI
+            </a>
+        </div>
+        `;
+    }
   }
 
   _updatePageTitle() {
