@@ -1,10 +1,12 @@
-import { API, getAuthToken } from '../../utils/api-helper';
+import { API, getAuthToken, getUserData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
+import { normalizeVendorType } from '../../utils/rbac-helper';
 
 export default class DownloadPage {
   constructor() {
     this.documents = [];
     this.filteredDocuments = [];
+    this.userData = null;
   }
 
   async render() {
@@ -20,21 +22,76 @@ export default class DownloadPage {
 
   async afterRender() {
     try {
+      this.userData = getUserData();
+      
+      if (!this.userData) {
+        window.location.hash = '#/login';
+        return;
+      }
+
+      // Fetch semua dokumen dari backend
       const response = await API.get(API_ENDPOINT.GET_DOCUMENTS_ARCHIVE);
       
       console.log('📥 Download Response:', response); 
       
       this.documents = response.data || response.documents || [];
       
-      console.log('📄 Documents:', this.documents); 
+      // Lakukan filtering berdasarkan Role & Kepemilikan
+      this.filteredDocuments = this._filterDocuments(this.documents);
       
-      this.filteredDocuments = [...this.documents];
+      console.log('📄 Filtered Documents:', this.filteredDocuments); 
       
       await this._renderWithData();
     } catch (error) {
       console.error('Error loading documents:', error);
       this._showError('Gagal memuat daftar dokumen: ' + error.message);
     }
+  }
+
+  /**
+   * Filter dokumen berdasarkan Role & Vendor Type
+   */
+  _filterDocuments(docs) {
+    const { role, id: userId, vendorType } = this.userData;
+    const normalizedVendorType = normalizeVendorType(vendorType);
+
+    return docs.filter(doc => {
+      // Deteksi tipe dokumen
+      const isBAPB = !!doc.bapb_number || (doc.type === 'BAPB');
+      const isBAPP = !!doc.bapp_number || (doc.type === 'BAPP');
+      
+      // Ambil ID vendor dokumen (support berbagai format response)
+      const docVendorId = doc.vendor_id || doc.vendor?.id;
+
+      // --- FILTERING ---
+
+      // ADMIN Lihat Semua
+      if (role === 'admin') return true;
+
+      // VENDOR Hanya dokumen miliknya & sesuai tipe
+      if (role === 'vendor') {
+        // Cek kepemilikan (Wajib match ID)
+        if (docVendorId !== userId) return false;
+
+        // Cek Tipe Vendor
+        if (normalizedVendorType === 'VENDOR_BARANG' && isBAPB) return true;
+        if (normalizedVendorType === 'VENDOR_JASA' && isBAPP) return true;
+        
+        return false;
+      }
+
+      // PIC GUDANG Hanya BAPB
+      if (role === 'pic_gudang') {
+        return isBAPB;
+      }
+
+      // APPROVER Hanya BAPP
+      if (role === 'approver') {
+        return isBAPP;
+      }
+
+      return false;
+    });
   }
 
   async _renderWithData() {
@@ -45,7 +102,7 @@ export default class DownloadPage {
           <div>
               <h2 class="heading-architectural text-4xl text-slate-900 mb-3">PUSAT UNDUHAN</h2>
               <p class="text-slate-600 text-xs font-bold uppercase tracking-widest border-l-4 border-lime-400 pl-4">
-                UNDUH ARSIP DIGITAL (${this.documents.length} DOKUMEN)
+                UNDUH ARSIP DIGITAL (${this.filteredDocuments.length} DOKUMEN)
               </p>
           </div>
           <a href="#/" class="inline-flex items-center gap-2 text-slate-900 border-2 border-slate-900 px-6 py-4 font-black uppercase text-xs hover:bg-slate-900 hover:text-white transition-all">
@@ -68,7 +125,7 @@ export default class DownloadPage {
         <div class="md:col-span-2 bg-white border-2 border-slate-900 p-16 text-center">
           <i class="ph-bold ph-file-dashed text-6xl text-slate-300 mb-4"></i>
           <h3 class="text-xl font-black text-slate-900 mb-2 uppercase">TIDAK ADA DOKUMEN</h3>
-          <p class="text-slate-600 font-semibold">Belum ada dokumen yang selesai diproses</p>
+          <p class="text-slate-600 font-semibold">Belum ada dokumen yang tersedia untuk Anda.</p>
         </div>
       `;
     }
@@ -78,6 +135,8 @@ export default class DownloadPage {
       const docNumber = doc.document_number || doc.bapb_number || doc.bapp_number || 'N/A';
       const docType = doc.type || (doc.bapb_number ? 'BAPB' : 'BAPP');
       const vendorName = doc.vendor?.name || doc.vendorName || 'Unknown Vendor';
+      
+      // Ambil tanggal yang tersedia (completed -> approved -> updated)
       const completedDate = doc.completed_at || doc.approved_at || doc.updated_at;
       const formattedDate = completedDate 
         ? new Date(completedDate).toLocaleDateString('id-ID', { 
@@ -87,8 +146,8 @@ export default class DownloadPage {
           })
         : '-';
 
-      // Generate filename
-      const filename = `${docType}_${docNumber.replace(/\//g, '-')}.pdf`;
+      // Generate filename yang rapi
+      const filename = `${docType}_${docNumber.replace(/[\/\\:]/g, '-')}.pdf`;
 
       return `
         <div class="group bg-white border-2 border-slate-900 hover-sharp transition-all overflow-hidden" data-doc-id="${doc.id}">
@@ -97,15 +156,15 @@ export default class DownloadPage {
                     <i class="ph-bold ph-file-pdf text-2xl"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <h4 class="font-black text-slate-900 text-base mb-2 uppercase truncate">${docNumber}</h4>
+                    <h4 class="font-black text-slate-900 text-base mb-2 uppercase truncate" title="${docNumber}">${docNumber}</h4>
                     <div class="text-xs text-slate-600 font-bold space-y-1">
                         <div class="flex items-center gap-2">
                             <i class="ph-fill ph-tag text-slate-500"></i>
-                            <span class="uppercase">${docType}</span>
+                            <span class="uppercase bg-slate-100 px-1 rounded">${docType}</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <i class="ph-fill ph-buildings text-slate-500"></i>
-                            <span>${vendorName}</span>
+                            <span class="truncate">${vendorName}</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <i class="ph-fill ph-calendar text-slate-500"></i>
@@ -117,7 +176,8 @@ export default class DownloadPage {
                     class="download-btn w-12 h-12 bg-lime-400 border-2 border-slate-900 hover:bg-slate-900 hover:text-lime-400 transition-all flex items-center justify-center flex-shrink-0"
                     data-doc-id="${doc.id}"
                     data-filename="${filename}"
-                    data-doc-type="${docType}">
+                    data-doc-type="${docType}"
+                    title="Unduh Dokumen">
                     <i class="ph-bold ph-download-simple text-xl"></i>
                 </button>
             </div>
@@ -149,10 +209,7 @@ export default class DownloadPage {
   async _handleDownload(docId, filename, docType) {
     const btn = document.querySelector(`[data-doc-id="${docId}"] .download-btn`);
     
-    if (!btn) {
-      console.error('Download button not found');
-      return;
-    }
+    if (!btn) return;
 
     // Store original state
     const originalHTML = btn.innerHTML;
@@ -169,7 +226,7 @@ export default class DownloadPage {
       const token = getAuthToken();
       
       if (!token) {
-        throw new Error('Authentication token not found. Please login again.');
+        throw new Error('Sesi habis. Silakan login kembali.');
       }
 
       // Determine the correct endpoint based on document type
@@ -179,7 +236,6 @@ export default class DownloadPage {
       } else if (docType === 'BAPP') {
         downloadUrl = API_ENDPOINT.DOWNLOAD_BAPP(docId);
       } else {
-        // Fallback to generic endpoint
         downloadUrl = API_ENDPOINT.DOWNLOAD_DOCUMENT(docId);
       }
 
@@ -193,28 +249,19 @@ export default class DownloadPage {
         }
       });
 
-      console.log('📥 Response status:', response.status);
-
       // Handle different error status codes
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Dokumen tidak ditemukan di server.');
-        } else if (response.status === 403) {
-          throw new Error('Anda tidak memiliki izin untuk mengunduh dokumen ini.');
-        } else if (response.status === 401) {
-          throw new Error('Sesi Anda telah berakhir. Silakan login kembali.');
-        } else {
-          throw new Error(`Server error: ${response.status} - ${response.statusText}`);
-        }
+        if (response.status === 404) throw new Error('File tidak ditemukan.');
+        if (response.status === 403) throw new Error('Akses ditolak.');
+        if (response.status === 401) throw new Error('Unauthorized.');
+        throw new Error(`Server error: ${response.status}`);
       }
 
       // Convert response to blob
       const blob = await response.blob();
-      console.log('📦 Blob size:', blob.size, 'bytes');
-
-      // Check if blob is valid
+      
       if (blob.size === 0) {
-        throw new Error('File kosong atau tidak valid.');
+        throw new Error('File kosong.');
       }
 
       // Create download link
@@ -228,8 +275,6 @@ export default class DownloadPage {
       // Trigger download
       a.click();
       
-      console.log('✅ Download triggered successfully');
-
       // Cleanup
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
@@ -256,8 +301,7 @@ export default class DownloadPage {
       btn.innerHTML = '<i class="ph-bold ph-warning text-xl"></i>';
       btn.className = originalClasses.replace('bg-lime-400', 'bg-red-500').replace('hover:bg-slate-900', '') + ' text-white';
       
-      // Show error notification
-      this._showErrorNotification(error.message || 'Gagal mengunduh file. Silakan coba lagi.');
+      this._showErrorNotification(error.message || 'Gagal mengunduh file.');
 
       // Restore button after delay
       setTimeout(() => {
@@ -276,7 +320,7 @@ export default class DownloadPage {
         <div class="w-12 h-12 bg-slate-900 flex items-center justify-center">
           <i class="ph-bold ph-check text-lime-400 text-2xl"></i>
         </div>
-        <div class="flex-1">
+        <div>
           <h4 class="font-black text-slate-900 mb-1 tracking-tight uppercase">BERHASIL!</h4>
           <p class="text-xs text-slate-900 font-bold tracking-tight">${message}</p>
         </div>
@@ -284,10 +328,8 @@ export default class DownloadPage {
     `;
 
     document.body.appendChild(notification);
-
     setTimeout(() => {
       notification.style.opacity = '0';
-      notification.style.transition = 'opacity 0.3s';
       setTimeout(() => notification.remove(), 300);
     }, 3000);
   }
@@ -301,7 +343,7 @@ export default class DownloadPage {
           <i class="ph-bold ph-warning text-red-500 text-2xl"></i>
         </div>
         <div class="flex-1">
-          <h4 class="font-black text-white mb-1 tracking-tight uppercase">GAGAL DOWNLOAD!</h4>
+          <h4 class="font-black text-white mb-1 tracking-tight uppercase">GAGAL!</h4>
           <p class="text-xs text-white font-bold tracking-tight">${message}</p>
         </div>
         <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-slate-200">
@@ -311,10 +353,8 @@ export default class DownloadPage {
     `;
 
     document.body.appendChild(notification);
-
     setTimeout(() => {
       notification.style.opacity = '0';
-      notification.style.transition = 'opacity 0.3s';
       setTimeout(() => notification.remove(), 300);
     }, 5000);
   }
