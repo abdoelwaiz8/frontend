@@ -1,5 +1,5 @@
 // File: src/scripts/pages/bapb/bapb-form-page.js
-import { API } from '../../utils/api-helper';
+import { API, getUserData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 import { parseActivePathname } from '../../routes/url-parser';
 
@@ -7,6 +7,7 @@ export default class BapbFormPage {
   constructor() {
     this.documentData = null;
     this.isEdit = false;
+    this.userData = null;
   }
 
   async render() {
@@ -22,9 +23,10 @@ export default class BapbFormPage {
 
   async afterRender() {
     try {
+      this.userData = getUserData();
       const { id } = parseActivePathname();
 
-      // CREATE MODE
+      // CREATE MODE (Vendor Only)
       if (!id || id === 'create') {
         this.isEdit = false;
         this.documentData = {
@@ -55,7 +57,7 @@ export default class BapbFormPage {
           <div>
               <h2 class="heading-architectural text-4xl text-slate-900 mb-3">${title}</h2>
               <p class="text-slate-600 text-xs font-bold uppercase tracking-widest border-l-4 border-lime-400 pl-4">
-                BERITA ACARA PENERIMAAN BARANG
+                DATA PENGIRIMAN BARANG (VENDOR)
               </p>
           </div>
           <a href="#/bapb" class="inline-flex items-center gap-2 text-slate-900 border-2 border-slate-900 px-6 py-4 font-black uppercase text-xs hover:bg-slate-900 hover:text-white transition-all">
@@ -65,24 +67,24 @@ export default class BapbFormPage {
 
       <form id="bapb-form" class="bg-white border-2 border-slate-900 overflow-hidden">
           <div class="px-8 py-6 border-b-2 border-slate-900 bg-slate-50">
-              <h3 class="heading-architectural text-slate-900 text-2xl mb-2">INFORMASI DOKUMEN</h3>
+              <h3 class="heading-architectural text-slate-900 text-2xl mb-2">INFORMASI SURAT JALAN / PO</h3>
           </div>
           
           <div class="p-8 space-y-6">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                       <label class="block text-[10px] font-black text-slate-900 mb-3 uppercase tracking-widest">NOMOR PO <span class="text-red-500">*</span></label>
-                      <input type="text" id="orderNumber" value="${this.documentData.orderNumber || ''}" 
+                      <input type="text" id="orderNumber" value="${this.documentData.orderNumber || this.documentData.order_number || ''}" 
                              class="w-full px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold uppercase" 
                              placeholder="CONTOH: PO-2025-001" required>
                   </div>
                   <div>
                       <label class="block text-[10px] font-black text-slate-900 mb-3 uppercase tracking-widest">TANGGAL PENGIRIMAN <span class="text-red-500">*</span></label>
-                      <input type="date" id="deliveryDate" value="${this.documentData.deliveryDate || ''}" 
+                      <input type="date" id="deliveryDate" value="${this.documentData.deliveryDate || this.documentData.delivery_date || ''}" 
                              class="w-full px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold" required>
                   </div>
                   <div class="md:col-span-2">
-                    <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">CATATAN DOKUMEN</label>
+                    <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">CATATAN PENGIRIMAN</label>
                     <textarea 
                       id="notes" 
                       class="w-full block px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm resize-y" 
@@ -93,7 +95,7 @@ export default class BapbFormPage {
 
               <div class="border-t-2 border-slate-900 pt-8">
                   <div class="flex justify-between items-center mb-6">
-                      <h4 class="heading-architectural text-slate-900 text-xl">DAFTAR BARANG</h4>
+                      <h4 class="heading-architectural text-slate-900 text-xl">DAFTAR BARANG YANG DIKIRIM</h4>
                       <button type="button" id="add-item-btn" class="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 px-4 py-3 border-2 border-slate-900 font-black text-xs uppercase hover-lift transition-all">
                           <i class="ph-bold ph-plus-circle text-lg"></i> TAMBAH BARANG
                       </button>
@@ -106,7 +108,7 @@ export default class BapbFormPage {
 
               <div class="flex gap-4 pt-6 border-t-2 border-slate-900">
                   <button type="submit" class="flex-1 px-6 py-5 bg-slate-900 hover:bg-slate-800 text-white border-2 border-slate-900 font-black transition-all flex items-center justify-center gap-2 hover-lift uppercase tracking-tight text-sm">
-                      <i class="ph-bold ph-check-circle text-xl"></i> ${this.isEdit ? 'UPDATE BAPB' : 'SIMPAN DOKUMEN'}
+                      <i class="ph-bold ph-check-circle text-xl"></i> ${this.isEdit ? 'UPDATE DOKUMEN' : 'KIRIM KE GUDANG'}
                   </button>
               </div>
           </div>
@@ -145,37 +147,24 @@ export default class BapbFormPage {
               <div>
                   <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">NAMA BARANG <span class="text-red-500">*</span></label>
                   <input type="text" class="item-name w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm uppercase" 
-                         value="${item.itemName || ''}" placeholder="CONTOH: LAPTOP ASUS ROG" required>
+                         value="${item.itemName || item.item_name || ''}" placeholder="CONTOH: LAPTOP ASUS ROG" required>
               </div>
-              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                      <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">QTY DIPESAN <span class="text-red-500">*</span></label>
+                      <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">QTY DIPESAN / DIKIRIM <span class="text-red-500">*</span></label>
                       <input type="number" class="item-qty-ordered w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm" 
-                             value="${item.quantityOrdered || ''}" placeholder="0" min="1" required>
-                  </div>
-                  <div>
-                      <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">QTY DITERIMA <span class="text-red-500">*</span></label>
-                      <input type="number" class="item-qty-received w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm" 
-                             value="${item.quantityReceived || ''}" placeholder="0" min="0" required>
+                             value="${item.quantityOrdered || item.quantity_ordered || ''}" placeholder="0" min="1" required>
                   </div>
                   <div>
                       <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">SATUAN <span class="text-red-500">*</span></label>
                       <input type="text" class="item-unit w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm uppercase" 
-                             value="${item.unit || ''}" placeholder="UNIT/PCS" required>
-                  </div>
-                  <div>
-                      <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">KONDISI <span class="text-red-500">*</span></label>
-                      <select class="item-condition w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm bg-white uppercase" required>
-                          <option value="BAIK" ${item.condition === 'BAIK' ? 'selected' : ''}>BAIK</option>
-                          <option value="RUSAK" ${item.condition === 'RUSAK' ? 'selected' : ''}>RUSAK</option>
-                          <option value="CACAT" ${item.condition === 'CACAT' ? 'selected' : ''}>CACAT</option>
-                      </select>
+                             value="${item.unit || ''}" placeholder="UNIT/PCS/BOX" required>
                   </div>
               </div>
               <div>
                   <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">CATATAN BARANG</label>
                   <input type="text" class="item-notes w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm" 
-                            value="${item.notes || ''}" placeholder="Keterangan tambahan (opsional)">
+                            value="${item.notes || ''}" placeholder="Keterangan spek atau nomor seri (opsional)">
               </div>
           </div>
       </div>
@@ -193,9 +182,7 @@ export default class BapbFormPage {
       this.documentData.items.push({
         itemName: '',
         quantityOrdered: 0,
-        quantityReceived: 0,
         unit: 'PCS',
-        condition: 'BAIK',
         notes: ''
       });
       itemsContainer.innerHTML = this._renderItems();
@@ -206,14 +193,8 @@ export default class BapbFormPage {
       const removeBtn = e.target.closest('.remove-item-btn');
       if (removeBtn) {
         const index = parseInt(removeBtn.dataset.index);
-        this.documentData.items.splice(index, 1);
-        
-        // Simpan state input yang lain sebelum re-render (optional improvement)
-        // Di sini kita re-render sederhana, data yang belum di-submit di row lain mungkin hilang jika tidak disync
-        // Untuk simplifikasi, kita ambil data dari DOM dulu baru splice
         this._syncDataFromDOM();
         this.documentData.items.splice(index, 1);
-        
         itemsContainer.innerHTML = this._renderItems();
       }
     });
@@ -226,7 +207,6 @@ export default class BapbFormPage {
   }
 
   _syncDataFromDOM() {
-    // Helper untuk mengambil data terkini dari input sebelum melakukan manipulasi array
     const rows = document.querySelectorAll('.item-row');
     const updatedItems = [];
     
@@ -234,9 +214,7 @@ export default class BapbFormPage {
         updatedItems.push({
             itemName: row.querySelector('.item-name').value.trim(),
             quantityOrdered: Number(row.querySelector('.item-qty-ordered').value),
-            quantityReceived: Number(row.querySelector('.item-qty-received').value),
             unit: row.querySelector('.item-unit').value.trim(),
-            condition: row.querySelector('.item-condition').value,
             notes: row.querySelector('.item-notes').value.trim()
         });
     });
@@ -252,48 +230,64 @@ export default class BapbFormPage {
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> MENYIMPAN...';
 
-      // 1. Ambil Data Header
-      const headerData = {
-        orderNumber: document.getElementById('orderNumber').value.trim(),
-        deliveryDate: document.getElementById('deliveryDate').value,
-        notes: document.getElementById('notes') ? document.getElementById('notes').value.trim() : '',
-      };
-
-      // 2. Ambil Data Items dari DOM
+      // 1. Sync Data
       this._syncDataFromDOM();
       
-      // 3. Gabungkan
-      const formData = {
-        ...headerData,
-        items: this.documentData.items
+      const rawOrderNumber = document.getElementById('orderNumber').value.trim();
+      const rawDeliveryDate = document.getElementById('deliveryDate').value;
+      const rawNotes = document.getElementById('notes').value.trim();
+
+      if (!this.userData || !this.userData.id) {
+        throw new Error('Sesi kadaluarsa. Silakan login kembali.');
+      }
+
+      if (this.documentData.items.length === 0) throw new Error('Minimal harus ada 1 barang dalam daftar');
+      
+      // ============================================================
+      // 🛠️ FIX PAYLOAD UTAMA:
+      // Sertakan semua field wajib (quantity_received & condition)
+      // meskipun Vendor tidak mengisinya di UI.
+      // ============================================================
+      const payload = {
+        order_number: rawOrderNumber,
+        delivery_date: rawDeliveryDate,
+        notes: rawNotes,
+        vendor_id: this.userData.id, 
+        
+        items: this.documentData.items.map(item => ({
+            item_name: item.itemName,
+            quantity_ordered: parseInt(item.quantityOrdered), // Pastikan Integer
+            
+            // ✅ FIELD WAJIB DIISI DEFAULT VALUE
+            quantity_received: 0, // Default 0
+            condition: 'BAIK',    // Default 'BAIK' (Safe Enum)
+            
+            unit: item.unit,
+            notes: item.notes
+        }))
       };
 
-      // 4. Validasi
-      if (!formData.orderNumber) throw new Error('Nomor PO harus diisi');
-      if (!formData.deliveryDate) throw new Error('Tanggal pengiriman harus diisi');
-      if (formData.items.length === 0) throw new Error('Minimal harus ada 1 barang');
+      console.log('📤 Sending BAPB Payload:', payload);
 
-      // Validasi item
-      const invalidItem = formData.items.find(item => !item.itemName || item.quantityOrdered <= 0);
-      if (invalidItem) throw new Error('Cek kembali data barang. Nama wajib diisi dan Qty Order > 0');
+      if (this.isEdit) {
+        await API.put(API_ENDPOINT.UPDATE_BAPB(this.documentData.id), payload);
+      } else {
+        await API.post(API_ENDPOINT.CREATE_BAPB, payload);
+      }
 
-      console.log('📤 Sending payload:', formData);
-
-      // 5. Kirim ke API
-      const response = this.isEdit
-        ? await API.put(API_ENDPOINT.UPDATE_BAPB(this.documentData.id), formData)
-        : await API.post(API_ENDPOINT.CREATE_BAPB, formData);
-
-      console.log('✅ Response:', response);
-
-      this._showSuccessNotification('BAPB berhasil disimpan!');
+      this._showSuccessNotification('BAPB berhasil dikirim! Menunggu pemeriksaan gudang.');
       
-      // Redirect
       setTimeout(() => window.location.hash = '#/bapb', 1500);
 
     } catch (error) {
       console.error('❌ Submit error:', error);
-      this._showErrorNotification(error.message || 'Gagal menyimpan data');
+      
+      let errorMessage = error.message;
+      if (errorMessage.includes('Validation failed')) {
+         errorMessage = 'Validasi Gagal. Backend menolak format data.';
+      }
+
+      this._showErrorNotification(errorMessage);
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalHTML;
     }
