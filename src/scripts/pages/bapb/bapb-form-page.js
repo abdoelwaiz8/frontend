@@ -1,4 +1,3 @@
-// File: src/scripts/pages/bapb/bapb-form-page.js
 import { API, getUserData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 import { parseActivePathname } from '../../routes/url-parser';
@@ -346,3 +345,4 @@ export default class BapbFormPage {
     if (title) title.innerHTML = this.isEdit ? 'EDIT BAPB' : 'BUAT BAPB BARU';
   }
 }
+
