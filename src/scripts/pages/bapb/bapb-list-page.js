@@ -1,5 +1,5 @@
 // File: src/scripts/pages/bapb/bapb-list-page.js
-import { API } from '../../utils/api-helper';
+import { API, getUserData } from '../../utils/api-helper'; // Menggunakan getUserData sesuai helper Anda
 import API_ENDPOINT from '../../globals/api-endpoint';
 
 export default class BapbListPage {
@@ -44,10 +44,9 @@ export default class BapbListPage {
       const response = await API.get(`${API_ENDPOINT.GET_BAPB_LIST}?${params}`);
       const dataList = response.data || [];
 
-      // Mapping agar field sesuai front-end
       this.documents = dataList.map(doc => ({
         id: doc.id,
-        documentNumber: doc.bapb_number, // nomor BAPB
+        documentNumber: doc.bapb_number,
         status: doc.status,
         vendorName: doc.vendor?.name || 'N/A',
         items: doc.items || [],
@@ -55,7 +54,6 @@ export default class BapbListPage {
       }));
 
       await this._renderList();
-
     } catch (error) {
       throw error;
     }
@@ -63,6 +61,13 @@ export default class BapbListPage {
 
   async _renderList() {
     const container = document.getElementById('main-content');
+
+    // ✅ Ambil data user dari helper getUserData()
+    const userData = getUserData();
+    const userRole = userData?.role || '';
+
+    // ✅ Logic: Jika role adalah pic_gudang, admin, atau approver, maka isInternalRole = true
+    const isInternalRole = ['pic_gudang', 'admin', 'approver'].includes(userRole);
 
     const stats = {
       total: this.documents.length,
@@ -91,13 +96,15 @@ export default class BapbListPage {
             </span>
           </div>
         </div>
-        <a href="#/bapb/create" 
-           class="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 px-6 py-4 border-2 border-slate-900 font-black uppercase text-xs hover-sharp transition-all">
-          <i class="ph-bold ph-plus-circle text-lg"></i> BUAT BAPB BARU
-        </a>
+        
+        ${!isInternalRole ? `
+          <a href="#/bapb/create" 
+             class="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 px-6 py-4 border-2 border-slate-900 font-black uppercase text-xs hover-sharp transition-all">
+            <i class="ph-bold ph-plus-circle text-lg"></i> BUAT BAPB BARU
+          </a>
+        ` : ''}
       </div>
 
-      <!-- Filters -->
       <div class="bg-white border-2 border-slate-900 p-6 mb-8">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="relative">
@@ -120,7 +127,6 @@ export default class BapbListPage {
         </div>
       </div>
 
-      <!-- Documents Grid -->
       <div id="documents-grid" class="grid grid-cols-1 gap-6">
         ${this._renderDocuments()}
       </div>
@@ -131,14 +137,21 @@ export default class BapbListPage {
 
   _renderDocuments() {
     if (this.documents.length === 0) {
+      const userData = getUserData();
+      const userRole = userData?.role || '';
+      const isInternalRole = ['pic_gudang', 'admin', 'approver'].includes(userRole);
+
       return `
         <div class="bg-white border-2 border-slate-900 p-16 text-center">
           <i class="ph-bold ph-file-dashed text-6xl text-slate-300 mb-4"></i>
           <h3 class="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">BELUM ADA DOKUMEN</h3>
-          <p class="text-slate-600 font-semibold mb-6">Mulai dengan membuat BAPB baru</p>
-          <a href="#/bapb/create" class="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 px-6 py-4 border-2 border-slate-900 font-black uppercase text-xs">
-            <i class="ph-bold ph-plus-circle"></i> BUAT BAPB PERTAMA
-          </a>
+          <p class="text-slate-600 font-semibold ${!isInternalRole ? 'mb-6' : ''}">Mulai dengan membuat BAPB baru</p>
+          
+          ${!isInternalRole ? `
+            <a href="#/bapb/create" class="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 px-6 py-4 border-2 border-slate-900 font-black uppercase text-xs">
+              <i class="ph-bold ph-plus-circle"></i> BUAT BAPB PERTAMA
+            </a>
+          ` : ''}
         </div>
       `;
     }
@@ -204,14 +217,14 @@ export default class BapbListPage {
     if (doc.status === 'DRAFT') {
       return `
         <a href="#/bapb/edit/${doc.id}" 
-           class="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs">
+            class="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs">
           <i class="ph-fill ph-pencil-simple"></i> EDIT
         </a>
       `;
     } else {
       return `
         <a href="#/bapb/${doc.id}" 
-           class="inline-flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-900 px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs">
+            class="inline-flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-900 px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs">
           <i class="ph-fill ph-eye"></i> LIHAT
         </a>
       `;
@@ -250,16 +263,19 @@ export default class BapbListPage {
   }
 
   _showError(msg) {
-    document.getElementById('main-content').innerHTML = `
-      <div class="bg-red-50 border-2 border-red-500 p-8 text-center">
-        <i class="ph-bold ph-warning text-5xl text-red-500 mb-4"></i>
-        <h3 class="font-black text-red-900 text-xl mb-2 uppercase">ERROR</h3>
-        <p class="text-red-700 font-bold mb-6">${msg}</p>
-        <a href="#/" class="inline-flex items-center gap-2 bg-red-500 text-white px-6 py-3 font-bold">
-          <i class="ph-bold ph-arrow-left"></i> KEMBALI
-        </a>
-      </div>
-    `;
+    const content = document.getElementById('main-content');
+    if (content) {
+      content.innerHTML = `
+        <div class="bg-red-50 border-2 border-red-500 p-8 text-center">
+          <i class="ph-bold ph-warning text-5xl text-red-500 mb-4"></i>
+          <h3 class="font-black text-red-900 text-xl mb-2 uppercase">ERROR</h3>
+          <p class="text-red-700 font-bold mb-6">${msg}</p>
+          <a href="#/" class="inline-flex items-center gap-2 bg-red-500 text-white px-6 py-3 font-bold">
+            <i class="ph-bold ph-arrow-left"></i> KEMBALI
+          </a>
+        </div>
+      `;
+    }
   }
 
   _updatePageTitle() {
