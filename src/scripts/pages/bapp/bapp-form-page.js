@@ -1,4 +1,3 @@
-// File: src/scripts/pages/bapp/bapp-form-page.js
 import { API } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 import { parseActivePathname } from '../../routes/url-parser';

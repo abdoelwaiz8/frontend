@@ -259,6 +259,10 @@ export default class DownloadPage {
 
       // Convert response to blob
       const blob = await response.blob();
+      
+      if (blob.size === 0) {
+        throw new Error('File kosong.');
+      }
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -373,4 +377,3 @@ export default class DownloadPage {
     if (title) title.innerHTML = 'PUSAT UNDUHAN';
   }
 }
-
