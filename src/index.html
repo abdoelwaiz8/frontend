@@ -1,44 +1,57 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signatul - Sign and Notule</title>
     <link rel="shortcut icon" href="./favicon.png">
-    
+
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- Google Fonts: DM Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&display=swap" rel="stylesheet">
-    
+
     <style>
-        * { font-family: 'DM Sans', sans-serif; }
-        
+        * {
+            font-family: 'DM Sans', sans-serif;
+        }
+
         /* Custom Scrollbar - Sharp Style */
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { 
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
             background: #a3e635;
             border-radius: 0;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-        
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #84cc16;
+        }
+
         /* Architectural Background Pattern */
         .architectural-bg {
             background-color: #0f172a;
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
             background-size: 20px 20px;
             position: relative;
         }
-        
+
         .architectural-bg::before {
             content: '';
             position: absolute;
@@ -48,38 +61,51 @@
             opacity: 0.3;
             pointer-events: none;
         }
-        
+
         /* Noise Texture for Main Content */
         .noise-texture {
             background-color: #fdfdfd;
             background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/></filter><rect width="300" height="300" filter="url(%23noise)" opacity="0.03"/></svg>');
         }
-        
+
         /* Sharp Shadow - Brutalist Style */
-        .shadow-sharp { box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 1); }
-        .shadow-sharp-sm { box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 1); }
-        .shadow-sharp-lime { box-shadow: 4px 4px 0px 0px #a3e635; }
-        
+        .shadow-sharp {
+            box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 1);
+        }
+
+        .shadow-sharp-sm {
+            box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 1);
+        }
+
+        .shadow-sharp-lime {
+            box-shadow: 4px 4px 0px 0px #a3e635;
+        }
+
         /* Heading Typography */
         .heading-architectural {
             font-weight: 900;
             letter-spacing: -0.05em;
             line-height: 1;
         }
-        
+
         /* Smooth Transitions - Minimal */
-        * { transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
-        
+        * {
+            transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
         /* Sharp Hover Effect */
-        .hover-sharp:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1); }
-        
+        .hover-sharp:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1);
+        }
+
         /* Active Navigation Sharp Border */
         .nav-active {
             border-left: 4px solid #a3e635;
             background-color: rgba(163, 230, 53, 0.1);
         }
     </style>
-    
+
     <script>
         tailwind.config = {
             theme: {
@@ -97,18 +123,18 @@
         }
     </script>
 </head>
+
 <body class="noise-texture flex h-screen overflow-hidden relative antialiased">
 
     <!-- Sidebar Overlay (Mobile) -->
-    <div id="sidebar-overlay" 
-         class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-20 hidden opacity-0 transition-opacity duration-300 md:hidden">
+    <div id="sidebar-overlay"
+        class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-20 hidden opacity-0 transition-opacity duration-300 md:hidden">
     </div>
 
     <!-- Sidebar - Architectural Style -->
-    <aside id="sidebar" 
-           class="architectural-bg fixed inset-y-0 left-0 w-72 border-r border-slate-800 flex flex-col z-30 
+    <aside id="sidebar" class="architectural-bg fixed inset-y-0 left-0 w-72 border-r border-slate-800 flex flex-col z-30 
                   transition-transform duration-300 transform -translate-x-full md:translate-x-0 md:static">
-        
+
         <!-- Logo Header - Sharp Style -->
         <div class="h-20 flex items-center px-8 border-b border-slate-800 relative">
             <div class="w-10 h-10 bg-lime-400 flex items-center justify-center">
@@ -122,103 +148,94 @@
 
         <!-- Navigation - Sharp & Minimal -->
         <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
-            <a href="#/" 
-               class="nav-item nav-active group flex items-center px-4 py-4 text-white font-bold transition-all hover:bg-slate-800/50">
-                <i class="ph-bold ph-squares-four text-xl mr-4"></i> 
+            <a href="#/"
+                class="nav-item nav-active group flex items-center px-4 py-4 text-white font-bold transition-all hover:bg-slate-800/50">
+                <i class="ph-bold ph-squares-four text-xl mr-4"></i>
                 <span class="tracking-tight">DASHBOARD</span>
             </a>
-            
+
             <!-- INPUT DOKUMEN GROUP (ID for RBAC - Vendor Only) -->
             <div id="nav-input-group">
                 <div class="pt-6 pb-2">
-                    <p class="px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-2 border-slate-800">INPUT DOKUMEN</p>
+                    <p
+                        class="px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-2 border-slate-800">
+                        INPUT DOKUMEN</p>
                 </div>
-                
-                <a href="#/bapb" 
-                   class="nav-item group flex items-center px-4 py-4 text-slate-400 hover:text-white hover:bg-slate-800/50 font-bold transition-all">
-                    <i class="ph-bold ph-package text-xl mr-4"></i> 
+
+                <a href="#/bapb"
+                    class="nav-item group flex items-center px-4 py-4 text-slate-400 hover:text-white hover:bg-slate-800/50 font-bold transition-all">
+                    <i class="ph-bold ph-package text-xl mr-4"></i>
                     <span class="tracking-tight">BAPB (Barang)</span>
                 </a>
-                
-                <a href="#/bapp" 
-                   class="nav-item group flex items-center px-4 py-4 text-slate-400 hover:text-white hover:bg-slate-800/50 font-bold transition-all">
-                    <i class="ph-bold ph-briefcase text-xl mr-4"></i> 
+
+                <a href="#/bapp"
+                    class="nav-item group flex items-center px-4 py-4 text-slate-400 hover:text-white hover:bg-slate-800/50 font-bold transition-all">
+                    <i class="ph-bold ph-briefcase text-xl mr-4"></i>
                     <span class="tracking-tight">BAPP (Jasa)</span>
                 </a>
             </div>
-            
+
             <!-- AKTIVITAS GROUP (PIC Gudang & Approver) -->
             <div class="pt-6 pb-2">
-                <p class="px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-2 border-slate-800">AKTIVITAS</p>
+                <p
+                    class="px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-2 border-slate-800">
+                    AKTIVITAS</p>
             </div>
-            
+
             <!-- APPROVAL MENU (ID for RBAC - PIC Gudang & Approver) -->
-            <a href="#/approval" 
-               id="nav-approval"
-               class="nav-item group flex items-center px-4 py-4 text-slate-400 hover:text-white hover:bg-slate-800/50 font-bold transition-all relative">
-                <i class="ph-bold ph-signature text-xl mr-4"></i> 
+            <a href="#/approval" id="nav-approval"
+                class="nav-item group flex items-center px-4 py-4 text-slate-400 hover:text-white hover:bg-slate-800/50 font-bold transition-all relative">
+                <i class="ph-bold ph-signature text-xl mr-4"></i>
                 <span class="tracking-tight">TANDA TANGAN</span>
                 <span class="absolute right-4 top-4 w-2 h-2 bg-lime-400 animate-pulse"></span>
             </a>
 
-            <a href="#/download" 
-               class="nav-item group flex items-center px-4 py-4 text-slate-400 hover:text-white hover:bg-slate-800/50 font-bold transition-all">
-                <i class="ph-bold ph-download-simple text-xl mr-4"></i> 
+            <a href="#/download"
+                class="nav-item group flex items-center px-4 py-4 text-slate-400 hover:text-white hover:bg-slate-800/50 font-bold transition-all">
+                <i class="ph-bold ph-download-simple text-xl mr-4"></i>
                 <span class="tracking-tight">DOWNLOAD</span>
             </a>
 
             <div id="nav-admin-group" class="hidden">
-            <div class="pt-6 pb-2">
-            <p class="px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-2 border-slate-800">ADMIN</p>
+                <div class="pt-6 pb-2">
+                    <p
+                        class="px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-2 border-slate-800">
+                        ADMIN</p>
+                </div>
+
+                <a href="#/payment" id="nav-payment"
+                    class="nav-item group flex items-center px-4 py-4 text-slate-400 hover:text-white hover:bg-slate-800/50 font-bold transition-all relative">
+                    <i class="ph-bold ph-currency-circle-dollar text-xl mr-4"></i>
+                    <span class="tracking-tight">PAYMENT</span>
+                    <span id="payment-badge"
+                        class="hidden absolute right-4 top-4 w-2 h-2 bg-red-500 animate-pulse"></span>
+                </a>
             </div>
-    
-            <a href="#/payment" 
-                id="nav-payment"
-                class="nav-item group flex items-center px-4 py-4 text-slate-400 hover:text-white hover:bg-slate-800/50 font-bold transition-all relative">
-                <i class="ph-bold ph-currency-circle-dollar text-xl mr-4"></i> 
-                <span class="tracking-tight">PAYMENT</span>
-                <span id="payment-badge" class="hidden absolute right-4 top-4 w-2 h-2 bg-red-500 animate-pulse"></span>
-            </a>
-        </div>
 
             <div class="pt-6 pb-2">
-                <p class="px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-2 border-slate-800">AKUN</p>
+                <p
+                    class="px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-2 border-slate-800">
+                    AKUN</p>
             </div>
-            
-            <a href="#/login" 
-               class="nav-item group flex items-center px-4 py-4 text-red-400 hover:text-red-300 hover:bg-red-900/20 font-bold transition-all">
-                <i class="ph-bold ph-sign-out text-xl mr-4"></i> 
+
+            <a href="#/login"
+                class="nav-item group flex items-center px-4 py-4 text-red-400 hover:text-red-300 hover:bg-red-900/20 font-bold transition-all">
+                <i class="ph-bold ph-sign-out text-xl mr-4"></i>
                 <span class="tracking-tight">KELUAR</span>
             </a>
         </nav>
 
         <!-- User Profile Card - Sharp Design (IDs for Dynamic Content) -->
         <div class="p-4 border-t border-slate-800 relative">
-            <button id="user-menu-btn" 
-                    class="flex items-center w-full text-left hover:bg-slate-800/50 p-3 transition focus:outline-none group">
-                <div id="profile-initials" class="w-11 h-11 bg-lime-400 flex items-center justify-center text-slate-900 font-black text-sm">
+            <div id="user-menu-btn"
+                class="flex items-center w-full text-left hover:bg-slate-800/50 p-3 transition focus:outline-none group">
+                <div id="profile-initials"
+                    class="w-11 h-11 bg-lime-400 flex items-center justify-center text-slate-900 font-black text-sm">
                     U
                 </div>
                 <div class="ml-3 flex-1 overflow-hidden">
                     <p id="profile-name" class="text-sm font-bold text-white truncate tracking-tight">USER</p>
                     <p id="profile-job" class="text-xs text-slate-400 truncate uppercase tracking-wider">Staff</p>
-                </div>
-                <i class="ph-bold ph-caret-up text-slate-400 ml-auto"></i>
-            </button>
-
-            <!-- User Menu Popup -->
-            <div id="user-menu-popup" 
-                 class="hidden absolute bottom-24 left-4 right-4 bg-slate-900 border border-slate-700 overflow-hidden z-50">
-                <div class="bg-slate-800 px-5 py-4 border-b border-slate-700">
-                    <p class="text-[10px] font-black text-lime-400 uppercase tracking-widest">AKUN SAYA</p>
-                </div>
-                <div class="py-2">
-                    <a href="#" class="flex items-center px-5 py-3 text-sm text-slate-300 hover:bg-slate-800 hover:text-white font-bold tracking-tight">
-                        <i class="ph-bold ph-user mr-3 text-lg"></i> PROFIL
-                    </a>
-                    <a href="#" class="flex items-center px-5 py-3 text-sm text-slate-300 hover:bg-slate-800 hover:text-white font-bold tracking-tight">
-                        <i class="ph-bold ph-gear mr-3 text-lg"></i> PENGATURAN
-                    </a>
                 </div>
             </div>
         </div>
@@ -226,34 +243,36 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col overflow-hidden relative noise-texture w-full">
-        
+
         <!-- Header - Sharp & Minimal -->
-        <header class="sticky top-0 z-10 h-20 flex-shrink-0 flex items-center justify-between px-6 md:px-10 border-b border-slate-200 bg-white">
+        <header
+            class="sticky top-0 z-10 h-20 flex-shrink-0 flex items-center justify-between px-6 md:px-10 border-b border-slate-200 bg-white">
             <div class="flex items-center gap-5">
-                <button id="hamburger-btn" 
-                        class="md:hidden w-10 h-10 flex items-center justify-center text-slate-900 hover:bg-slate-100 transition-all">
+                <button id="hamburger-btn"
+                    class="md:hidden w-10 h-10 flex items-center justify-center text-slate-900 hover:bg-slate-100 transition-all">
                     <i class="ph-bold ph-list text-2xl"></i>
                 </button>
-                
+
                 <div>
                     <h1 id="page-title" class="heading-architectural text-xl md:text-2xl text-slate-900">
                         DASHBOARD OVERVIEW
                     </h1>
-                    <p class="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-widest">KELOLA DOKUMEN PROCUREMENT</p>
+                    <p class="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-widest">KELOLA DOKUMEN
+                        PROCUREMENT</p>
                 </div>
             </div>
-            
+
             <div class="flex items-center gap-3">
                 <!-- Search Bar (Hidden on Mobile) -->
                 <div class="relative hidden lg:block">
                     <i class="ph-bold ph-magnifying-glass absolute left-4 top-3.5 text-slate-400"></i>
-                    <input type="text" 
-                           placeholder="SEARCH..." 
-                           class="pl-11 pr-5 py-3 w-80 border border-slate-300 text-sm bg-white focus:ring-2 focus:ring-lime-400 focus:border-lime-400 outline-none transition-all font-bold tracking-tight uppercase placeholder:text-slate-400">
+                    <input type="text" placeholder="SEARCH..."
+                        class="pl-11 pr-5 py-3 w-80 border border-slate-300 text-sm bg-white focus:ring-2 focus:ring-lime-400 focus:border-lime-400 outline-none transition-all font-bold tracking-tight uppercase placeholder:text-slate-400">
                 </div>
-                
+
                 <!-- Notification Bell -->
-                <button class="relative w-11 h-11 flex items-center justify-center text-slate-900 hover:bg-slate-100 transition-all border border-slate-300">
+                <button
+                    class="relative w-11 h-11 flex items-center justify-center text-slate-900 hover:bg-slate-100 transition-all border border-slate-300">
                     <i class="ph-bold ph-bell text-2xl"></i>
                     <span class="absolute top-2 right-2 w-2 h-2 bg-lime-400 border-2 border-white"></span>
                 </button>
@@ -267,4 +286,5 @@
     </main>
 
 </body>
+
 </html>
