@@ -55,9 +55,6 @@ export default class ApprovalListPage {
         document_number: doc.bapp_number || doc.document_number
       }));
 
-      console.log('📥 Raw BAPB List:', bapbList);
-      console.log('📥 Raw BAPP List:', bappList);
-
       // Gabungkan semua dokumen
       const allDocuments = [...bapbList, ...bappList];
 
@@ -77,10 +74,10 @@ export default class ApprovalListPage {
   _filterDocumentsByRole(documents) {
     if (this.userRole === 'admin') {
       return documents.filter(doc => {
-        const status = (doc.status || '').toLowerCase();
+        // Tampilkan yang statusnya submitted (menunggu action)
+        if (doc.status === 'submitted' || doc.status === 'in_review') return true;
         
-        if (status === 'submitted' || status === 'in_review') return true;
-        
+        // Fallback ke pengecekan signature lama jika status tidak cukup
         if (doc.type === 'BAPB') return !doc.vendor_signed || !doc.pic_gudang_signed;
         if (doc.type === 'BAPP') return !doc.vendor_signed || !doc.approver_signed;
         return false;
@@ -95,20 +92,18 @@ export default class ApprovalListPage {
       
       // Vendor Barang: hanya BAPB status Draft/Revisi
       if (normalizedType === 'VENDOR_BARANG') {
-        return documents.filter(doc => {
-          const status = (doc.status || '').toLowerCase();
-          return doc.type === 'BAPB' && 
-                 (status === 'draft' || status === 'revision_required');
-        });
+        return documents.filter(doc => 
+          doc.type === 'BAPB' && 
+          (doc.status === 'draft' || doc.status === 'revision_required')
+        );
       }
       
       // Vendor Jasa: hanya BAPP status Draft/Revisi
       if (normalizedType === 'VENDOR_JASA') {
-        return documents.filter(doc => {
-          const status = (doc.status || '').toLowerCase();
-          return doc.type === 'BAPP' && 
-                 (status === 'draft' || status === 'revision_required');
-        });
+        return documents.filter(doc => 
+          doc.type === 'BAPP' && 
+          (doc.status === 'draft' || doc.status === 'revision_required')
+        );
       }
       
       return [];
@@ -119,47 +114,17 @@ export default class ApprovalListPage {
     // ============================================
 
     if (this.userRole === 'pic_gudang') {
-      const filtered = documents.filter(doc => {
-        const status = (doc.status || '').toLowerCase();
-        const result = doc.type === 'BAPB' && 
-                      (status === 'submitted' || status === 'in_review');
-        
-        if (result) {
-          console.log('✅ PIC Gudang - BAPB Found:', {
-            id: doc.id,
-            number: doc.document_number,
-            status: doc.status,
-            vendor_signed: doc.vendor_signed
-          });
-        }
-        
-        return result;
-      });
-      
-      console.log(`📊 PIC Gudang - Total BAPB for approval: ${filtered.length}`);
-      return filtered;
+      return documents.filter(doc => 
+        doc.type === 'BAPB' && 
+        (doc.status === 'submitted' || doc.status === 'in_review')
+      );
     }
 
     if (this.userRole === 'approver') {
-      const filtered = documents.filter(doc => {
-        const status = (doc.status || '').toLowerCase();
-        const result = doc.type === 'BAPP' && 
-                      (status === 'submitted' || status === 'in_review');
-        
-        if (result) {
-          console.log('✅ Approver - BAPP Found:', {
-            id: doc.id,
-            number: doc.document_number,
-            status: doc.status,
-            vendor_signed: doc.vendor_signed
-          });
-        }
-        
-        return result;
-      });
-      
-      console.log(`📊 Approver - Total BAPP for approval: ${filtered.length}`);
-      return filtered;
+      return documents.filter(doc => 
+        doc.type === 'BAPP' && 
+        (doc.status === 'submitted' || doc.status === 'in_review')
+      );
     }
 
     return [];
@@ -236,20 +201,16 @@ export default class ApprovalListPage {
       let signatureStatus = 'Menunggu Tindakan';
       let statusClass = 'bg-amber-100 text-amber-800 border-amber-500';
 
-      const status = (doc.status || '').toLowerCase();
-      
-      if (status === 'draft') {
+      if (doc.status === 'draft') {
         signatureStatus = 'Draft (Perlu Submit)';
         statusClass = 'bg-slate-200 text-slate-700 border-slate-400';
-      } else if (status === 'submitted') {
+      } else if (doc.status === 'submitted') {
         if (docType === 'BAPB') signatureStatus = 'Menunggu Approval PIC Gudang';
         else signatureStatus = 'Menunggu Approval Direksi';
-      } else if (status === 'in_review') {
-        signatureStatus = 'Dalam Review';
-      } else if (status === 'revision_required') {
+      } else if (doc.status === 'revision_required') {
         signatureStatus = 'Perlu Revisi';
         statusClass = 'bg-red-100 text-red-800 border-red-500';
-      } else if (status === 'approved') {
+      } else if (doc.status === 'approved') {
         signatureStatus = 'Selesai';
         statusClass = 'bg-lime-100 text-lime-800 border-lime-500';
       }
@@ -269,7 +230,7 @@ export default class ApprovalListPage {
                                 <h3 class="text-lg font-black text-slate-900 truncate">${docNumber}</h3>
                                 <span class="inline-flex items-center gap-1.5 ${statusClass} px-3 py-1.5 border-2 text-xs font-black uppercase">
                                     <span class="w-1.5 h-1.5 bg-current rounded-full animate-pulse"></span>
-                                    ${status.replace('_', ' ').toUpperCase()}
+                                    ${doc.status ? doc.status.replace('_', ' ') : 'PENDING'}
                                 </span>
                                 <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-800 px-3 py-1.5 border-2 border-slate-300 text-xs font-black uppercase">
                                     ${docType}

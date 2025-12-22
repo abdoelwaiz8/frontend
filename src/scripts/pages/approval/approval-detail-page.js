@@ -1,4 +1,3 @@
-// File: src/scripts/pages/approval/bapb-approval-detail-page.js (COMPLETE FIXED VERSION)
 import { parseActivePathname } from '../../routes/url-parser';
 import { API, getUserData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
@@ -140,7 +139,6 @@ export default class BapbApprovalDetailPage {
       setTimeout(() => {
         this._initSignatureUpload();
         this._initApprovalHandler();
-        this._initItemValidation();
       }, 300);
     }
   }
@@ -157,7 +155,7 @@ export default class BapbApprovalDetailPage {
           ${items.map((item, index) => `
             <div class="border-2 border-slate-900 bg-slate-50 p-6" data-item-id="${item.id}">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="flex-1">
+                    <div>
                         <h4 class="font-black text-slate-900 text-lg mb-1">${item.item_name}</h4>
                         <p class="text-xs text-slate-600 font-bold">
                             <i class="ph-bold ph-package"></i> QTY DIPESAN: ${item.quantity_ordered} ${item.unit}
@@ -176,7 +174,6 @@ export default class BapbApprovalDetailPage {
                                placeholder="Jumlah barang yang diterima"
                                min="0"
                                max="${item.quantity_ordered}"
-                               value="${item.quantity_received || ''}"
                                required>
                         <p class="text-[10px] text-slate-500 mt-1 font-bold">Max: ${item.quantity_ordered} ${item.unit}</p>
                     </div>
@@ -187,9 +184,9 @@ export default class BapbApprovalDetailPage {
                         </label>
                         <select class="item-condition w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm bg-white" required>
                             <option value="">-- PILIH KONDISI --</option>
-                            <option value="BAIK" ${item.condition === 'BAIK' ? 'selected' : ''}>✓ BAIK (Sesuai Spesifikasi)</option>
-                            <option value="RUSAK" ${item.condition === 'RUSAK' ? 'selected' : ''}>✗ RUSAK (Ada Kerusakan)</option>
-                            <option value="KURANG" ${item.condition === 'KURANG' ? 'selected' : ''}>⚠ KURANG (Tidak Lengkap)</option>
+                            <option value="BAIK">✓ BAIK (Sesuai Spesifikasi)</option>
+                            <option value="RUSAK">✗ RUSAK (Ada Kerusakan)</option>
+                            <option value="KURANG">⚠ KURANG (Tidak Lengkap)</option>
                         </select>
                     </div>
                     
@@ -332,59 +329,6 @@ export default class BapbApprovalDetailPage {
     `;
   }
 
-  _initItemValidation() {
-    const itemContainers = document.querySelectorAll('[data-item-id]');
-    const approveBtn = document.getElementById('approve-btn');
-
-    // Validate on input change
-    const validateAllItems = () => {
-      let allValid = true;
-      let itemsComplete = true;
-
-      itemContainers.forEach(container => {
-        const qtyInput = container.querySelector('.item-qty-received');
-        const conditionSelect = container.querySelector('.item-condition');
-
-        // Check if filled
-        if (!qtyInput.value || qtyInput.value <= 0) {
-          itemsComplete = false;
-        }
-        if (!conditionSelect.value) {
-          itemsComplete = false;
-        }
-
-        // Visual feedback
-        if (qtyInput.value && conditionSelect.value) {
-          container.classList.remove('border-slate-900');
-          container.classList.add('border-lime-500', 'bg-lime-50');
-        } else {
-          container.classList.remove('border-lime-500', 'bg-lime-50');
-          container.classList.add('border-slate-900');
-        }
-      });
-
-      // Enable approve button only if items are complete AND signature uploaded
-      if (approveBtn) {
-        const hasSignature = this.signatureBase64 !== null;
-        approveBtn.disabled = !(itemsComplete && hasSignature);
-      }
-
-      return allValid;
-    };
-
-    // Attach listeners
-    itemContainers.forEach(container => {
-      const qtyInput = container.querySelector('.item-qty-received');
-      const conditionSelect = container.querySelector('.item-condition');
-
-      qtyInput.addEventListener('input', validateAllItems);
-      conditionSelect.addEventListener('change', validateAllItems);
-    });
-
-    // Initial validation
-    validateAllItems();
-  }
-
   _initSignatureUpload() {
     const fileInput = document.getElementById('signature-file');
     const uploadBtn = document.getElementById('btn-upload-signature');
@@ -425,8 +369,7 @@ export default class BapbApprovalDetailPage {
         uploadBtn.classList.add('hidden');
         previewContainer.classList.remove('hidden');
 
-        // Check if items are also filled before enabling
-        this._checkApproveButtonState();
+        approveBtn.disabled = false;
 
         console.log('✅ Signature uploaded successfully');
 
@@ -457,27 +400,6 @@ export default class BapbApprovalDetailPage {
         console.log('🗑️ Signature cleared');
       });
     }
-  }
-
-  _checkApproveButtonState() {
-    const approveBtn = document.getElementById('approve-btn');
-    if (!approveBtn) return;
-
-    // Check if all items have qty_received and condition
-    const itemContainers = document.querySelectorAll('[data-item-id]');
-    let allItemsValid = true;
-
-    itemContainers.forEach(container => {
-      const qtyInput = container.querySelector('.item-qty-received');
-      const conditionSelect = container.querySelector('.item-condition');
-
-      if (!qtyInput.value || qtyInput.value <= 0 || !conditionSelect.value) {
-        allItemsValid = false;
-      }
-    });
-
-    // Enable button only if signature AND all items are valid
-    approveBtn.disabled = !(this.signatureBase64 && allItemsValid);
   }
 
   async _handleSignatureUpload(file) {
@@ -529,7 +451,7 @@ export default class BapbApprovalDetailPage {
         throw new Error('Mohon upload foto tanda tangan terlebih dahulu');
       }
 
-      // Collect items data with validation
+      // Collect items data
       const itemsData = [];
       const itemElements = document.querySelectorAll('[data-item-id]');
       
@@ -577,7 +499,7 @@ export default class BapbApprovalDetailPage {
 
       const approveBtn = document.getElementById('approve-btn');
       approveBtn.innerHTML = '<i class="ph-bold ph-seal-check text-xl"></i> APPROVE & SIGN';
-      this._checkApproveButtonState();
+      approveBtn.disabled = this.signatureBase64 ? false : true;
     }
   }
 
@@ -626,7 +548,7 @@ export default class BapbApprovalDetailPage {
     }, 3000);
   }
 
-_showErrorNotification(message) {
+  _showErrorNotification(message) {
     const notification = document.createElement('div');
     notification.className = 'fixed top-8 right-8 bg-red-500 border-2 border-slate-900 p-6 z-50 shadow-sharp max-w-md';
     notification.innerHTML = `

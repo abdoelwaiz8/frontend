@@ -1,6 +1,6 @@
-import { API, getUserData } from "../../utils/api-helper";
-import API_ENDPOINT from "../../globals/api-endpoint";
-import { parseActivePathname } from "../../routes/url-parser";
+import { API, getUserData } from '../../utils/api-helper';
+import API_ENDPOINT from '../../globals/api-endpoint';
+import { parseActivePathname } from '../../routes/url-parser';
 
 export default class BapbFormPage {
   constructor() {
@@ -26,11 +26,11 @@ export default class BapbFormPage {
       const { id } = parseActivePathname();
 
       // CREATE MODE (Vendor Only)
-      if (!id || id === "create") {
+      if (!id || id === 'create') {
         this.isEdit = false;
         this.documentData = {
-          orderNumber: "",
-          deliveryDate: new Date().toISOString().split("T")[0],
+          orderNumber: '',
+          deliveryDate: new Date().toISOString().split('T')[0],
           items: [],
         };
       }
@@ -42,14 +42,14 @@ export default class BapbFormPage {
 
       await this._renderForm();
     } catch (error) {
-      console.error("Error loading form:", error);
-      this._showError("Gagal memuat form: " + error.message);
+      console.error('Error loading form:', error);
+      this._showError('Gagal memuat form: ' + error.message);
     }
   }
 
   async _renderForm() {
-    const container = document.getElementById("main-content");
-    const title = this.isEdit ? "EDIT BAPB" : "BUAT BAPB BARU";
+    const container = document.getElementById('main-content');
+    const title = this.isEdit ? 'EDIT BAPB' : 'BUAT BAPB BARU';
 
     container.innerHTML = `
       <div class="flex flex-col md:flex-row justify-between items-start mb-8 gap-6">
@@ -73,13 +73,13 @@ export default class BapbFormPage {
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                       <label class="block text-[10px] font-black text-slate-900 mb-3 uppercase tracking-widest">NOMOR PO <span class="text-red-500">*</span></label>
-                      <input type="text" id="orderNumber" value="${this.documentData.orderNumber || this.documentData.order_number || ""}" 
+                      <input type="text" id="orderNumber" value="${this.documentData.orderNumber || this.documentData.order_number || ''}" 
                              class="w-full px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold uppercase" 
                              placeholder="CONTOH: PO-2025-001" required>
                   </div>
                   <div>
                       <label class="block text-[10px] font-black text-slate-900 mb-3 uppercase tracking-widest">TANGGAL PENGIRIMAN <span class="text-red-500">*</span></label>
-                      <input type="date" id="deliveryDate" value="${this.documentData.deliveryDate || this.documentData.delivery_date || ""}" 
+                      <input type="date" id="deliveryDate" value="${this.documentData.deliveryDate || this.documentData.delivery_date || ''}" 
                              class="w-full px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold" required>
                   </div>
                   <div class="md:col-span-2">
@@ -88,7 +88,7 @@ export default class BapbFormPage {
                       id="notes" 
                       class="w-full block px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm resize-y" 
                       rows="3" 
-                      placeholder="CATATAN TAMBAHAN UNTUK GUDANG...">${this.documentData.notes || ""}</textarea>
+                      placeholder="CATATAN TAMBAHAN UNTUK GUDANG...">${this.documentData.notes || ''}</textarea>
                   </div>
               </div>
 
@@ -107,7 +107,7 @@ export default class BapbFormPage {
 
               <div class="flex gap-4 pt-6 border-t-2 border-slate-900">
                   <button type="submit" class="flex-1 px-6 py-5 bg-slate-900 hover:bg-slate-800 text-white border-2 border-slate-900 font-black transition-all flex items-center justify-center gap-2 hover-lift uppercase tracking-tight text-sm">
-                      <i class="ph-bold ph-check-circle text-xl"></i> ${this.isEdit ? "UPDATE DOKUMEN" : "KIRIM KE GUDANG"}
+                      <i class="ph-bold ph-check-circle text-xl"></i> ${this.isEdit ? 'UPDATE DOKUMEN' : 'KIRIM KE GUDANG'}
                   </button>
               </div>
           </div>
@@ -130,9 +130,7 @@ export default class BapbFormPage {
       `;
     }
 
-    return items
-      .map(
-        (item, index) => `
+    return items.map((item, index) => `
       <div class="item-row bg-slate-50 border-2 border-slate-900 p-6 relative group" data-index="${index}">
           <div class="flex justify-between items-start mb-4">
               <div class="flex items-center gap-2">
@@ -148,52 +146,50 @@ export default class BapbFormPage {
               <div>
                   <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">NAMA BARANG <span class="text-red-500">*</span></label>
                   <input type="text" class="item-name w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm uppercase" 
-                         value="${item.itemName || item.item_name || ""}" placeholder="CONTOH: LAPTOP ASUS ROG" required>
+                         value="${item.itemName || item.item_name || ''}" placeholder="CONTOH: LAPTOP ASUS ROG" required>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                       <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">QTY DIPESAN / DIKIRIM <span class="text-red-500">*</span></label>
                       <input type="number" class="item-qty-ordered w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm" 
-                             value="${item.quantityOrdered || item.quantity_ordered || ""}" placeholder="0" min="1" required>
+                             value="${item.quantityOrdered || item.quantity_ordered || ''}" placeholder="0" min="1" required>
                   </div>
                   <div>
                       <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">SATUAN <span class="text-red-500">*</span></label>
                       <input type="text" class="item-unit w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm uppercase" 
-                             value="${item.unit || ""}" placeholder="UNIT/PCS/BOX" required>
+                             value="${item.unit || ''}" placeholder="UNIT/PCS/BOX" required>
                   </div>
               </div>
               <div>
                   <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">CATATAN BARANG</label>
                   <input type="text" class="item-notes w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm" 
-                            value="${item.notes || ""}" placeholder="Keterangan spek atau nomor seri (opsional)">
+                            value="${item.notes || ''}" placeholder="Keterangan spek atau nomor seri (opsional)">
               </div>
           </div>
       </div>
-    `
-      )
-      .join("");
+    `).join('');
   }
 
   _initEventListeners() {
-    const form = document.getElementById("bapb-form");
-    const addItemBtn = document.getElementById("add-item-btn");
-    const itemsContainer = document.getElementById("items-container");
+    const form = document.getElementById('bapb-form');
+    const addItemBtn = document.getElementById('add-item-btn');
+    const itemsContainer = document.getElementById('items-container');
 
     // Add new item
-    addItemBtn.addEventListener("click", () => {
+    addItemBtn.addEventListener('click', () => {
       if (!this.documentData.items) this.documentData.items = [];
       this.documentData.items.push({
-        itemName: "",
+        itemName: '',
         quantityOrdered: 0,
-        unit: "PCS",
-        notes: "",
+        unit: 'PCS',
+        notes: ''
       });
       itemsContainer.innerHTML = this._renderItems();
     });
 
     // Remove item (Event Delegation)
-    itemsContainer.addEventListener("click", (e) => {
-      const removeBtn = e.target.closest(".remove-item-btn");
+    itemsContainer.addEventListener('click', (e) => {
+      const removeBtn = e.target.closest('.remove-item-btn');
       if (removeBtn) {
         const index = parseInt(removeBtn.dataset.index);
         this._syncDataFromDOM();
@@ -203,22 +199,22 @@ export default class BapbFormPage {
     });
 
     // Submit form
-    form.addEventListener("submit", async (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       await this._handleSubmit();
     });
   }
 
   _syncDataFromDOM() {
-    const rows = document.querySelectorAll(".item-row");
+    const rows = document.querySelectorAll('.item-row');
     const updatedItems = [];
 
-    rows.forEach((row) => {
+    rows.forEach(row => {
       updatedItems.push({
-        itemName: row.querySelector(".item-name").value.trim(),
-        quantityOrdered: Number(row.querySelector(".item-qty-ordered").value),
-        unit: row.querySelector(".item-unit").value.trim(),
-        notes: row.querySelector(".item-notes").value.trim(),
+        itemName: row.querySelector('.item-name').value.trim(),
+        quantityOrdered: Number(row.querySelector('.item-qty-ordered').value),
+        unit: row.querySelector('.item-unit').value.trim(),
+        notes: row.querySelector('.item-notes').value.trim()
       });
     });
 
@@ -236,35 +232,42 @@ export default class BapbFormPage {
       // 1. Sync Data
       this._syncDataFromDOM();
 
-      const rawOrderNumber = document.getElementById("orderNumber").value.trim();
-      const rawDeliveryDate = document.getElementById("deliveryDate").value;
-      const rawNotes = document.getElementById("notes").value.trim();
+      const rawOrderNumber = document.getElementById('orderNumber').value.trim();
+      const rawDeliveryDate = document.getElementById('deliveryDate').value;
+      const rawNotes = document.getElementById('notes').value.trim();
 
       if (!this.userData || !this.userData.id) {
-        throw new Error("Sesi kadaluarsa. Silakan login kembali.");
+        throw new Error('Sesi kadaluarsa. Silakan login kembali.');
       }
 
-      if (this.documentData.items.length === 0) throw new Error("Minimal harus ada 1 barang dalam daftar");
+      if (this.documentData.items.length === 0) throw new Error('Minimal harus ada 1 barang dalam daftar');
 
-      // ============================================================
-      // 🛠️ FIX PAYLOAD UTAMA:
-      // Sertakan semua field wajib (quantity_received & condition)
-      // meskipun Vendor tidak mengisinya di UI.
-      // ============================================================
       const payload = {
         orderNumber: rawOrderNumber,
         deliveryDate: rawDeliveryDate,
         notes: rawNotes,
 
-        items: this.documentData.items.map((item) => ({
+        items: this.documentData.items.map(item => ({
           itemName: item.itemName,
-          quantityOrdered: parseInt(item.quantityOrdered), // Pastikan Integer
+          quantityOrdered: Number(item.quantityOrdered),
           unit: item.unit,
-          notes: item.notes,
-        })),
+          notes: item.notes || ''
+        }))
       };
 
-      console.log("📤 Sending BAPB Payload:", payload);
+      console.log('📤 Sending BAPB Payload:', payload);
+
+      for (const item of payload.items) {
+        if (!item.itemName) {
+          throw new Error('Nama barang wajib diisi');
+        }
+        if (item.quantityOrdered < 1) {
+          throw new Error('Quantity minimal 1');
+        }
+        if (!item.unit) {
+          throw new Error('Satuan wajib diisi');
+        }
+      }
 
       if (this.isEdit) {
         await API.put(API_ENDPOINT.UPDATE_BAPB(this.documentData.id), payload);
@@ -272,15 +275,16 @@ export default class BapbFormPage {
         await API.post(API_ENDPOINT.CREATE_BAPB, payload);
       }
 
-      this._showSuccessNotification("BAPB berhasil dikirim! Menunggu pemeriksaan gudang.");
+      this._showSuccessNotification('BAPB berhasil dikirim! Menunggu pemeriksaan gudang.');
 
-      setTimeout(() => (window.location.hash = "#/bapb"), 1500);
+      setTimeout(() => window.location.hash = '#/bapb', 1500);
+
     } catch (error) {
-      console.error("❌ Submit error:", error);
+      console.error('❌ Submit error:', error);
 
       let errorMessage = error.message;
-      if (errorMessage.includes("Validation failed")) {
-        errorMessage = "Validasi Gagal. Backend menolak format data.";
+      if (errorMessage.includes('Validation failed')) {
+        errorMessage = 'Validasi Gagal. Backend menolak format data.';
       }
 
       this._showErrorNotification(errorMessage);
@@ -290,8 +294,8 @@ export default class BapbFormPage {
   }
 
   _showSuccessNotification(message) {
-    const notification = document.createElement("div");
-    notification.className = "fixed top-8 right-8 bg-lime-400 border-2 border-slate-900 p-6 z-50 shadow-sharp animate-bounce-in";
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-8 right-8 bg-lime-400 border-2 border-slate-900 p-6 z-50 shadow-sharp animate-bounce-in';
     notification.innerHTML = `
       <div class="flex items-center gap-4">
         <div class="w-12 h-12 bg-slate-900 flex items-center justify-center">
@@ -308,8 +312,8 @@ export default class BapbFormPage {
   }
 
   _showErrorNotification(message) {
-    const notification = document.createElement("div");
-    notification.className = "fixed top-8 right-8 bg-red-500 border-2 border-slate-900 p-6 z-50 shadow-sharp max-w-md";
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-8 right-8 bg-red-500 border-2 border-slate-900 p-6 z-50 shadow-sharp max-w-md';
     notification.innerHTML = `
       <div class="flex items-start gap-4">
         <div class="w-12 h-12 bg-slate-900 flex items-center justify-center flex-shrink-0">
@@ -329,7 +333,7 @@ export default class BapbFormPage {
   }
 
   _showError(msg) {
-    document.getElementById("main-content").innerHTML = `
+    document.getElementById('main-content').innerHTML = `
       <div class="flex items-center justify-center min-h-screen flex-col">
         <h2 class="text-2xl font-black text-red-500 mb-4">ERROR</h2>
         <p class="font-bold text-slate-700 mb-6">${msg}</p>
@@ -338,7 +342,8 @@ export default class BapbFormPage {
   }
 
   _updatePageTitle() {
-    const title = document.getElementById("page-title");
-    if (title) title.innerHTML = this.isEdit ? "EDIT BAPB" : "BUAT BAPB BARU";
+    const title = document.getElementById('page-title');
+    if (title) title.innerHTML = this.isEdit ? 'EDIT BAPB' : 'BUAT BAPB BARU';
   }
 }
+
