@@ -208,16 +208,16 @@ export default class BapbFormPage {
   _syncDataFromDOM() {
     const rows = document.querySelectorAll('.item-row');
     const updatedItems = [];
-    
+
     rows.forEach(row => {
-        updatedItems.push({
-            itemName: row.querySelector('.item-name').value.trim(),
-            quantityOrdered: Number(row.querySelector('.item-qty-ordered').value),
-            unit: row.querySelector('.item-unit').value.trim(),
-            notes: row.querySelector('.item-notes').value.trim()
-        });
+      updatedItems.push({
+        itemName: row.querySelector('.item-name').value.trim(),
+        quantityOrdered: Number(row.querySelector('.item-qty-ordered').value),
+        unit: row.querySelector('.item-unit').value.trim(),
+        notes: row.querySelector('.item-notes').value.trim()
+      });
     });
-    
+
     this.documentData.items = updatedItems;
   }
 
@@ -231,7 +231,7 @@ export default class BapbFormPage {
 
       // 1. Sync Data
       this._syncDataFromDOM();
-      
+
       const rawOrderNumber = document.getElementById('orderNumber').value.trim();
       const rawDeliveryDate = document.getElementById('deliveryDate').value;
       const rawNotes = document.getElementById('notes').value.trim();
@@ -241,32 +241,33 @@ export default class BapbFormPage {
       }
 
       if (this.documentData.items.length === 0) throw new Error('Minimal harus ada 1 barang dalam daftar');
-      
-      // ============================================================
-      // 🛠️ FIX PAYLOAD UTAMA:
-      // Sertakan semua field wajib (quantity_received & condition)
-      // meskipun Vendor tidak mengisinya di UI.
-      // ============================================================
+
       const payload = {
-        order_number: rawOrderNumber,
-        delivery_date: rawDeliveryDate,
+        orderNumber: rawOrderNumber,
+        deliveryDate: rawDeliveryDate,
         notes: rawNotes,
-        vendor_id: this.userData.id, 
-        
+
         items: this.documentData.items.map(item => ({
-            item_name: item.itemName,
-            quantity_ordered: parseInt(item.quantityOrdered), // Pastikan Integer
-            
-            // ✅ FIELD WAJIB DIISI DEFAULT VALUE
-            quantity_received: 0, // Default 0
-            condition: 'BAIK',    // Default 'BAIK' (Safe Enum)
-            
-            unit: item.unit,
-            notes: item.notes
+          itemName: item.itemName,
+          quantityOrdered: Number(item.quantityOrdered),
+          unit: item.unit,
+          notes: item.notes || ''
         }))
       };
 
       console.log('📤 Sending BAPB Payload:', payload);
+
+      for (const item of payload.items) {
+        if (!item.itemName) {
+          throw new Error('Nama barang wajib diisi');
+        }
+        if (item.quantityOrdered < 1) {
+          throw new Error('Quantity minimal 1');
+        }
+        if (!item.unit) {
+          throw new Error('Satuan wajib diisi');
+        }
+      }
 
       if (this.isEdit) {
         await API.put(API_ENDPOINT.UPDATE_BAPB(this.documentData.id), payload);
@@ -275,15 +276,15 @@ export default class BapbFormPage {
       }
 
       this._showSuccessNotification('BAPB berhasil dikirim! Menunggu pemeriksaan gudang.');
-      
+
       setTimeout(() => window.location.hash = '#/bapb', 1500);
 
     } catch (error) {
       console.error('❌ Submit error:', error);
-      
+
       let errorMessage = error.message;
       if (errorMessage.includes('Validation failed')) {
-         errorMessage = 'Validasi Gagal. Backend menolak format data.';
+        errorMessage = 'Validasi Gagal. Backend menolak format data.';
       }
 
       this._showErrorNotification(errorMessage);
