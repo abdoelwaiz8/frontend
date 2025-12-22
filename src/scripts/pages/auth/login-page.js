@@ -1,4 +1,4 @@
-// File: src/scripts/pages/auth/login-page.js (COMPLETE FIXED VERSION)
+// File: src/scripts/pages/auth/login-page.js
 import { API, saveAuthData } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
@@ -13,7 +13,7 @@ export default class LoginPage {
                     <i class="ph-bold ph-briefcase text-slate-900 text-5xl"></i>
                 </div>
                 <h2 class="heading-architectural text-6xl text-white mb-6 text-center">
-                  DIGITAL<br />PROCUREMENT
+                    DIGITAL<br />PROCUREMENT
                 </h2>
             </div>
         </div>
@@ -27,11 +27,16 @@ export default class LoginPage {
                 <form id="login-form" class="space-y-6">
                     <div>
                         <label class="block text-[10px] font-black text-slate-900 mb-3 uppercase tracking-widest">EMAIL</label>
-                        <input type="email" id="email" class="w-full px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold uppercase" placeholder="CONTOH: VENDOR@EXAMPLE.COM" required>
+                        <input type="email" id="email" class="w-full px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold" placeholder="vendor@example.com" required>
                     </div>
                     <div>
                         <label class="block text-[10px] font-black text-slate-900 mb-3 uppercase tracking-widest">PASSWORD</label>
-                        <input type="password" id="password" class="w-full px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold" required>
+                        <div class="relative">
+                            <input type="password" id="password" class="w-full px-4 py-4 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold" required>
+                            <button type="button" id="toggle-password" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors">
+                                <i class="ph-bold ph-eye text-xl" id="eye-icon"></i>
+                            </button>
+                        </div>
                     </div>
                     <button type="submit" class="w-full bg-lime-400 hover:bg-lime-500 text-slate-900 font-black py-5 border-2 border-slate-900 hover-sharp uppercase tracking-tight text-sm transition-all">
                         MASUK KE PORTAL
@@ -55,6 +60,22 @@ export default class LoginPage {
     if (sidebar) sidebar.classList.add('hidden');
 
     this._initLoginForm();
+    this._initPasswordVisibility(); // Menjalankan fungsi mata
+  }
+
+  _initPasswordVisibility() {
+    const toggleBtn = document.getElementById('toggle-password');
+    const passwordInput = document.getElementById('password');
+    const eyeIcon = document.getElementById('eye-icon');
+
+    if (!toggleBtn || !passwordInput) return;
+
+    toggleBtn.addEventListener('click', () => {
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      // Toggle icon Phosphor
+      eyeIcon.className = isPassword ? 'ph-bold ph-eye-slash text-xl' : 'ph-bold ph-eye text-xl';
+    });
   }
 
   _initLoginForm() {
@@ -77,16 +98,14 @@ export default class LoginPage {
 
       try {
         console.log('🔐 Attempting login for:', email);
-        
+
         const response = await API.post(API_ENDPOINT.LOGIN, {
           email: email,
           password: password
         });
 
-        console.log('📥 Login Response:', response);
-
         // ============================================
-        // ✅ EXTRACT DATA FROM RESPONSE
+        // ✅ LOGIC TETAP SAMA (ROBUST DETECTION)
         // ============================================
         const data = response.data || response;
 
@@ -94,130 +113,47 @@ export default class LoginPage {
           throw new Error('Token tidak ditemukan dalam response');
         }
 
-        // ============================================
-        // ✅ EXTRACT USER INFO WITH ROBUST VENDOR TYPE DETECTION
-        // ============================================
         const user = data.user || {};
-        
-        console.log('👤 Raw User Data dari API:', user);
-        console.log('🔍 Checking vendor type fields:', {
-          vendorType: user.vendorType,
-          vendor_type: user.vendor_type,
-          type: user.type,
-          role: user.role
-        });
-
-        // ============================================
-        // ✅ CRITICAL FIX: Handle vendorType dengan SANGAT robust
-        // ============================================
         let vendorType = null;
-        
+
         if (user.role === 'vendor') {
-          // ============================================
-          // ✅ PRIORITAS DETEKSI: Cek SEMUA kemungkinan field
-          // Backend mungkin pakai: vendorType, vendor_type, atau type
-          // ============================================
           vendorType = user.vendorType || user.vendor_type || user.type || null;
-          
-          console.log('🔍 Vendor Type Detection:', {
-            found_vendorType: user.vendorType,
-            found_vendor_type: user.vendor_type,
-            found_type: user.type,
-            raw_result: vendorType
-          });
-          
-          // ============================================
-          // ⚠️ CRITICAL VALIDATION: Vendor MUST have vendorType
-          // ============================================
+
           if (!vendorType) {
-            console.error('❌ CRITICAL ERROR: Vendor login without vendorType');
-            console.error('❌ This should NEVER happen. Check backend response.');
-            console.error('❌ Raw user object:', JSON.stringify(user, null, 2));
-            throw new Error('Akun vendor tidak memiliki tipe yang valid. Silakan hubungi administrator.');
+            throw new Error('Akun vendor tidak memiliki tipe yang valid.');
           }
-          
-          // ============================================
-          // ✅ NORMALIZE FORMAT: Ensure consistent format
-          // Convert berbagai format ke VENDOR_BARANG atau VENDOR_JASA
-          // ============================================
-          const originalVendorType = vendorType;
+
           const normalized = vendorType.toUpperCase().trim();
-          
-          console.log('🔄 Normalizing vendorType from:', originalVendorType);
-          
-          // Handle "barang" → "VENDOR_BARANG"
           if (normalized === 'BARANG' || normalized.includes('BARANG')) {
             vendorType = 'VENDOR_BARANG';
-            console.log(`✅ Normalized: "${originalVendorType}" → "VENDOR_BARANG"`);
-          } 
-          // Handle "jasa" → "VENDOR_JASA"
-          else if (normalized === 'JASA' || normalized.includes('JASA')) {
+          } else if (normalized === 'JASA' || normalized.includes('JASA')) {
             vendorType = 'VENDOR_JASA';
-            console.log(`✅ Normalized: "${originalVendorType}" → "VENDOR_JASA"`);
-          }
-          // Already in correct format
-          else if (normalized === 'VENDOR_BARANG' || normalized === 'VENDOR_JASA') {
+          } else if (normalized === 'VENDOR_BARANG' || normalized === 'VENDOR_JASA') {
             vendorType = normalized;
-            console.log(`✅ Already normalized: "${vendorType}"`);
-          }
-          // Unknown format - try to add VENDOR_ prefix
-          else {
-            console.warn(`⚠️ Unknown vendorType format: "${originalVendorType}"`);
+          } else {
             vendorType = `VENDOR_${normalized}`;
-            console.log(`🔄 Attempted normalization: "${originalVendorType}" → "${vendorType}"`);
           }
-          
-          console.log('✅ Final vendorType after normalization:', vendorType);
-          
-        } else {
-          console.log('ℹ️ Not a vendor role, vendorType set to null');
         }
 
-        // ============================================
-        // ✅ BUILD USERDATA OBJECT
-        // ============================================
         const userData = {
           id: user.id,
           name: user.name || email.split('@')[0],
           email: user.email || email,
           role: user.role || 'vendor',
-          vendorType: vendorType, // ✅ NULL untuk non-vendor, WAJIB ADA untuk vendor
+          vendorType: vendorType,
           jobTitle: user.jobTitle || user.job_title || this._getDefaultJobTitle(user.role, vendorType),
           initials: this._getInitials(user.name || email),
           company: user.company || null,
           phone: user.phone || null
         };
 
-        console.log('💾 Final userData to be saved:', userData);
-        console.log('🔑 Critical Fields Check:', {
-          role: userData.role,
-          vendorType: userData.vendorType,
-          isVendor: userData.role === 'vendor',
-          hasVendorType: !!userData.vendorType,
-          isValid: userData.role !== 'vendor' || !!userData.vendorType
-        });
-
-        // ============================================
-        // ✅ FINAL VALIDATION BEFORE SAVE
-        // ============================================
+        // Final Validation sebelum simpan
         if (userData.role === 'vendor' && !userData.vendorType) {
-          console.error('❌ FINAL VALIDATION FAILED: Vendor userData has null vendorType');
-          throw new Error('Error sistem: Vendor type tidak terdeteksi. Silakan hubungi administrator.');
+          throw new Error('Error sistem: Vendor type tidak terdeteksi.');
         }
 
-        // ============================================
-        // ✅ SAVE TO SESSION STORAGE
-        // ============================================
         saveAuthData(data.token, userData);
 
-        console.log('✅ Login successful - userData saved to sessionStorage');
-        console.log('🔑 Token:', data.token.substring(0, 20) + '...');
-        console.log('📋 Role:', userData.role);
-        console.log('🏷️ Vendor Type:', userData.vendorType);
-
-        // ============================================
-        // ✅ SHOW SUCCESS & REDIRECT
-        // ============================================
         msgContainer.className = 'mb-4 p-4 border-2 border-lime-500 bg-lime-100 text-lime-800 text-xs font-bold uppercase';
         msgContainer.innerText = 'LOGIN BERHASIL! MENGALIHKAN...';
         msgContainer.classList.remove('hidden');
@@ -229,10 +165,8 @@ export default class LoginPage {
 
       } catch (error) {
         console.error('❌ Login Error:', error);
-
         let errorMessage = error.message;
-
-        if (errorMessage.includes('Session expired') || errorMessage.includes('401')) {
+        if (errorMessage.includes('401')) {
           errorMessage = 'EMAIL ATAU PASSWORD SALAH';
         }
 
@@ -248,8 +182,8 @@ export default class LoginPage {
 
   _getDefaultJobTitle(role, vendorType) {
     const titles = {
-      'vendor': vendorType === 'VENDOR_BARANG' ? 'Vendor Barang' : 
-                vendorType === 'VENDOR_JASA' ? 'Vendor Jasa' : 'Vendor',
+      'vendor': vendorType === 'VENDOR_BARANG' ? 'Vendor Barang' :
+        vendorType === 'VENDOR_JASA' ? 'Vendor Jasa' : 'Vendor',
       'pic_gudang': 'PIC Gudang',
       'approver': 'Approver',
       'admin': 'Administrator'
@@ -259,12 +193,8 @@ export default class LoginPage {
 
   _getInitials(name) {
     if (!name) return 'U';
-    
     const parts = name.trim().split(' ');
-    if (parts.length === 1) {
-      return parts[0].substring(0, 2).toUpperCase();
-    }
-    
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 }
