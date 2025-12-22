@@ -6,8 +6,10 @@ export default class BapbViewPage {
     constructor() {
         this.documentData = null;
         this.userData = getUserData();
-        this.canvas = null;
-        this.ctx = null;
+
+        // State untuk menyimpan file tanda tangan (Sama seperti BAPP)
+        this.signatureBase64 = null;
+        this.signatureFile = null;
     }
 
     async render() {
@@ -23,7 +25,7 @@ export default class BapbViewPage {
     async afterRender() {
         try {
             const { id } = parseActivePathname();
-            
+
             // Fetch Detail BAPB
             const response = await BapbAPI.getDetail(id);
             this.documentData = response.data || response;
@@ -38,36 +40,34 @@ export default class BapbViewPage {
     _renderWithData() {
         const d = this.documentData;
         const container = document.getElementById('main-content');
-        
+
         // --- 1. IDENTIFIKASI USER & ROLE ---
         const userRole = this.userData.role;
         const vendorType = normalizeVendorType(this.userData.vendorType);
 
         // --- 2. CEK STATUS TANDA TANGAN ---
-        // Cek flag dari backend atau cari di attachments
         const isVendorSigned = d.vendor_signed || (d.attachments && d.attachments.some(a => a.uploaded_by === d.vendor_id && a.file_type === 'signature'));
         const isPicSigned = d.pic_gudang_signed || (d.status === 'approved');
 
         // --- 3. TENTUKAN ALUR (STATE MACHINE) ---
-        let showCanvas = false;
+        let showUploadPanel = false;
         let actionButtonText = '';
-        let actionType = null; // 'sign_vendor', 'submit_vendor', 'approve_pic'
+        let actionType = null;
         let showRejectButton = false;
         let infoMessage = '';
 
         // >> ALUR VENDOR BARANG
         if (userRole === 'vendor' && vendorType === 'VENDOR_BARANG') {
-            // Hanya bisa aksi jika draft atau revision_required
             if (d.status === 'draft' || d.status === 'revision_required') {
                 if (!isVendorSigned) {
-                    // Step 1: Vendor Belum TTD
-                    showCanvas = true;
+                    // Step 1: Vendor Belum TTD -> Upload
+                    showUploadPanel = true;
                     actionButtonText = 'SIMPAN TANDA TANGAN';
                     actionType = 'sign_vendor';
-                    infoMessage = 'Silakan tanda tangan pada kotak di bawah sebelum mengirim dokumen.';
+                    infoMessage = 'Silakan upload foto tanda tangan (PNG/JPG) sebelum menyimpan.';
                 } else {
-                    // Step 2: Vendor Sudah TTD -> Siap Submit
-                    showCanvas = false;
+                    // Step 2: Vendor Sudah TTD -> Submit
+                    showUploadPanel = false;
                     actionButtonText = 'KIRIM KE PIC GUDANG (SUBMIT)';
                     actionType = 'submit_vendor';
                     infoMessage = 'Dokumen sudah ditandatangani. Klik tombol di bawah untuk mengirim ke PIC Gudang.';
@@ -75,15 +75,14 @@ export default class BapbViewPage {
             }
         }
 
-        // >> ALUR PIC GUDANG
-        if (userRole === 'pic_gudang') {
-            // Hanya bisa aksi jika submitted (pending)
+        // >> ALUR PIC GUDANG (APPROVER)
+        if (userRole === 'pic_gudang' || userRole === 'admin') {
             if (d.status === 'submitted' || d.status === 'in_review') {
-                showCanvas = true; // PIC wajib TTD saat approve
+                showUploadPanel = true; // PIC wajib upload TTD saat approve
                 actionButtonText = 'SETUJUI & TANDA TANGAN';
                 actionType = 'approve_pic';
                 showRejectButton = true;
-                infoMessage = 'Periksa kelengkapan barang. Jika sesuai, tanda tangan untuk menyetujui.';
+                infoMessage = 'Periksa kelengkapan barang. Upload tanda tangan untuk menyetujui.';
             }
         }
 
@@ -156,11 +155,11 @@ export default class BapbViewPage {
                          <h3 class="heading-architectural text-sm mb-4 text-slate-500">STATUS PENGESAHAN</h3>
                          <div class="flex gap-4">
                             <div class="flex-1 border border-slate-200 p-3 text-center ${isVendorSigned ? 'bg-lime-50 border-lime-500' : ''}">
-                                <p class="text-[10px] font-bold uppercase mb-1">VENDOR</p>
+                                <p class="text-[10px] font-bold uppercase mb-1">PIHAK PERTAMA (VENDOR)</p>
                                 ${isVendorSigned ? '<i class="ph-fill ph-check-circle text-lime-600 text-xl"></i>' : '<span class="text-xs text-slate-400 font-bold">BELUM</span>'}
                             </div>
                             <div class="flex-1 border border-slate-200 p-3 text-center ${isPicSigned ? 'bg-lime-50 border-lime-500' : ''}">
-                                <p class="text-[10px] font-bold uppercase mb-1">PIC GUDANG</p>
+                                <p class="text-[10px] font-bold uppercase mb-1">PIHAK KEDUA (PIC GUDANG)</p>
                                 ${isPicSigned ? '<i class="ph-fill ph-check-circle text-lime-600 text-xl"></i>' : '<span class="text-xs text-slate-400 font-bold">BELUM</span>'}
                             </div>
                          </div>
@@ -171,13 +170,13 @@ export default class BapbViewPage {
                     
                     ${infoMessage ? `
                     <div class="bg-blue-50 border-l-4 border-blue-600 p-4">
-                        <p class="text-blue-800 text-sm font-bold leading-relaxed">${infoMessage}</p>
+                        <p class="text-blue-900 text-sm font-bold leading-relaxed">${infoMessage}</p>
                     </div>` : ''}
 
-                    ${showCanvas ? this._renderSignaturePanel() : ''}
+                    ${showUploadPanel ? this._renderSignaturePanel() : ''}
 
                     ${actionType ? `
-                        <button id="main-action-btn" class="w-full py-4 bg-slate-900 text-white font-black border-2 border-slate-900 uppercase hover:bg-slate-800 hover:shadow-sharp transition-all text-sm tracking-wide">
+                        <button id="main-action-btn" class="w-full py-4 bg-slate-900 text-white font-black border-2 border-slate-900 uppercase hover:bg-slate-800 hover:shadow-sharp transition-all text-sm tracking-wide" ${showUploadPanel ? 'disabled' : ''}>
                             ${actionButtonText}
                         </button>
                     ` : ''}
@@ -188,7 +187,7 @@ export default class BapbViewPage {
                         </button>
                     ` : ''}
 
-                    ${!showCanvas && actionType === 'submit_vendor' ? `
+                    ${!showUploadPanel && actionType === 'submit_vendor' ? `
                         <div class="text-center p-4 bg-lime-50 border border-lime-200">
                             <i class="ph-fill ph-signature text-3xl text-lime-600 mb-2"></i>
                             <p class="text-xs font-bold text-lime-800">Tanda tangan Anda telah tersimpan.</p>
@@ -202,13 +201,12 @@ export default class BapbViewPage {
 
         // --- 5. INITIALIZE EVENTS ---
 
-        if (showCanvas) this._initSignaturePad();
+        if (showUploadPanel) this._initSignatureUpload(); // Menggunakan Upload Handler
         if (d.status === 'approved') this._initDownloadButton();
 
         const mainBtn = document.getElementById('main-action-btn');
         if (mainBtn) {
             mainBtn.addEventListener('click', async () => {
-                // Cegah double click
                 mainBtn.disabled = true;
                 const originalText = mainBtn.innerHTML;
                 mainBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> MEMPROSES...';
@@ -218,10 +216,11 @@ export default class BapbViewPage {
                     else if (actionType === 'submit_vendor') await this._handleVendorSubmit(d.id);
                     else if (actionType === 'approve_pic') await this._handlePicApprove(d.id);
                 } catch (err) {
-                    console.error(err); // Log error
-                    // Error handling sudah ada di masing-masing fungsi handler
+                    console.error(err);
                     mainBtn.disabled = false;
                     mainBtn.innerHTML = originalText;
+                    // Jika tombol aktif lagi, cek apakah signature file masih ada (untuk case upload)
+                    if (showUploadPanel && !this.signatureBase64) mainBtn.disabled = true;
                 }
             });
         }
@@ -265,78 +264,126 @@ export default class BapbViewPage {
         return `
         <div class="bg-white border-2 border-slate-900 shadow-sharp sticky top-6">
             <div class="p-3 bg-slate-900 text-white flex justify-between items-center">
-                <h3 class="font-bold text-xs uppercase tracking-wider">AREA TANDA TANGAN</h3>
-                <i class="ph-bold ph-pen-nib"></i>
+                <h3 class="font-bold text-xs uppercase tracking-wider">UPLOAD TANDA TANGAN</h3>
+                <i class="ph-bold ph-upload-simple"></i>
             </div>
-            <div class="p-4">
-                <div class="border-2 border-dashed border-slate-300 bg-slate-50 relative h-48 touch-none cursor-crosshair">
-                    <canvas id="signature-pad" class="w-full h-full"></canvas>
-                </div>
-                <button id="clear-sig" class="mt-2 w-full text-center text-red-500 text-[10px] font-black hover:text-red-700 uppercase transition-colors">
-                    <i class="ph-bold ph-trash"></i> HAPUS / ULANGI
-                </button>
+            
+            <div class="p-6">
+                 <div id="upload-container">
+                    <input type="file" id="signature-file" accept="image/jpeg,image/jpg,image/png" class="hidden">
+                    <button id="btn-upload-signature" 
+                            class="w-full h-32 border-2 border-dashed border-slate-300 bg-slate-50 hover:border-lime-400 hover:bg-lime-50 transition-all flex flex-col items-center justify-center gap-2 group">
+                        <i class="ph-bold ph-upload text-2xl text-slate-400 group-hover:text-lime-500 transition-colors"></i>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase">PILIH FILE (JPG/PNG)</span>
+                    </button>
+                    <p class="text-[10px] text-slate-400 mt-2 text-center">Maksimal ukuran 2MB.</p>
+                 </div>
+
+                 <div id="upload-loading" class="hidden text-center py-4">
+                     <i class="ph-bold ph-spinner animate-spin text-2xl text-lime-500"></i>
+                     <p class="text-[10px] font-bold mt-2">MEMPROSES GAMBAR...</p>
+                 </div>
+
+                 <div id="signature-preview-container" class="hidden">
+                      <div class="relative bg-slate-100 border border-slate-200 p-2 mb-2">
+                          <img id="signature-preview" src="" alt="Preview TTD" class="w-full h-32 object-contain">
+                          <button id="btn-clear-signature" class="absolute top-1 right-1 bg-red-500 text-white p-1 hover:bg-red-600 transition-colors rounded shadow">
+                              <i class="ph-bold ph-x"></i>
+                          </button>
+                      </div>
+                      <p class="text-[10px] text-lime-600 font-bold text-center">✓ Tanda tangan siap digunakan</p>
+                 </div>
             </div>
         </div>`;
     }
 
-    // --- LOGIC HELPERS ---
+    // --- LOGIC: SIGNATURE UPLOAD HANDLER ---
+    _initSignatureUpload() {
+        const fileInput = document.getElementById('signature-file');
+        const uploadBtn = document.getElementById('btn-upload-signature');
+        const uploadContainer = document.getElementById('upload-container');
+        const previewContainer = document.getElementById('signature-preview-container');
+        const previewImage = document.getElementById('signature-preview');
+        const clearBtn = document.getElementById('btn-clear-signature');
+        const uploadLoading = document.getElementById('upload-loading');
+        const mainActionBtn = document.getElementById('main-action-btn');
 
-    _initSignaturePad() {
-        this.canvas = document.getElementById('signature-pad');
-        if (!this.canvas) return;
+        if (!uploadBtn || !fileInput) return;
 
-        const resizeCanvas = () => {
-            const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            this.canvas.width = this.canvas.offsetWidth * ratio;
-            this.canvas.height = this.canvas.offsetHeight * ratio;
-            this.ctx = this.canvas.getContext('2d');
-            this.ctx.scale(ratio, ratio);
-            this.ctx.lineWidth = 2.5;
-            this.ctx.lineCap = 'round';
-            this.ctx.strokeStyle = "#0f172a"; // Slate-900
-        };
+        // Trigger input file saat tombol diklik
+        uploadBtn.addEventListener('click', () => fileInput.click());
 
-        resizeCanvas();
-        window.addEventListener("resize", resizeCanvas);
+        // Handle saat file dipilih
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        let isDrawing = false;
-        
-        // Mouse & Touch Events Combined Logic
-        const start = (e) => {
-            e.preventDefault(); // Prevent scroll on touch
-            isDrawing = true;
-            this.ctx.beginPath();
-            const { x, y } = this._getCoords(e);
-            this.ctx.moveTo(x, y);
-        };
-        const move = (e) => {
-            e.preventDefault();
-            if (!isDrawing) return;
-            const { x, y } = this._getCoords(e);
-            this.ctx.lineTo(x, y);
-            this.ctx.stroke();
-        };
-        const end = () => { isDrawing = false; };
+            try {
+                // Tampilkan loading, sembunyikan upload button
+                uploadContainer.classList.add('hidden');
+                uploadLoading.classList.remove('hidden');
 
-        this.canvas.addEventListener('mousedown', start);
-        this.canvas.addEventListener('mousemove', move);
-        this.canvas.addEventListener('mouseup', end);
-        this.canvas.addEventListener('mouseleave', end);
-        
-        this.canvas.addEventListener('touchstart', start, { passive: false });
-        this.canvas.addEventListener('touchmove', move, { passive: false });
-        this.canvas.addEventListener('touchend', end);
+                // Proses konversi ke Base64
+                const base64 = await this._handleSignatureFile(file);
 
-        document.getElementById('clear-sig').addEventListener('click', () => {
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.signatureFile = file;
+                this.signatureBase64 = base64;
+
+                // Tampilkan preview
+                previewImage.src = base64;
+                uploadLoading.classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+
+                // Aktifkan tombol aksi utama (Simpan/Approve)
+                if (mainActionBtn) mainActionBtn.disabled = false;
+
+            } catch (error) {
+                console.error(error);
+                alert(error.message);
+
+                // Reset jika error
+                uploadLoading.classList.add('hidden');
+                uploadContainer.classList.remove('hidden');
+                fileInput.value = '';
+            }
         });
+
+        // Handle tombol hapus/reset
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                this.signatureFile = null;
+                this.signatureBase64 = null;
+
+                fileInput.value = '';
+                previewImage.src = '';
+
+                previewContainer.classList.add('hidden');
+                uploadContainer.classList.remove('hidden');
+
+                // Disable tombol aksi utama karena file dihapus
+                if (mainActionBtn) mainActionBtn.disabled = true;
+            });
+        }
     }
 
-    _getCoords(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: clientX - rect.left, y: clientY - rect.top };
+    // Helper untuk membaca file jadi Base64
+    _handleSignatureFile(file) {
+        return new Promise((resolve, reject) => {
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!validTypes.includes(file.type)) {
+                return reject(new Error('Format file tidak valid. Gunakan JPG atau PNG.'));
+            }
+
+            const maxSize = 2 * 1024 * 1024; // 2MB
+            if (file.size > maxSize) {
+                return reject(new Error('Ukuran file terlalu besar. Maksimal 2MB.'));
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Gagal membaca file.'));
+            reader.readAsDataURL(file);
+        });
     }
 
     _initDownloadButton() {
@@ -369,21 +416,24 @@ export default class BapbViewPage {
     // --- ACTION HANDLERS ---
 
     async _handleVendorSign(id) {
-        const signature = this.canvas.toDataURL('image/png');
-        // Validasi canvas kosong sederhana (bisa dikembangkan)
-        if (signature.length < 1000) { 
-            alert('Silakan buat tanda tangan terlebih dahulu.');
-            throw new Error('Canvas kosong');
+        // Cek apakah file sudah diupload
+        if (!this.signatureBase64) {
+            alert('Silakan upload tanda tangan terlebih dahulu.');
+            throw new Error('Signature missing');
         }
 
-        if (!confirm('Simpan tanda tangan? Anda perlu menekan tombol SUBMIT setelah ini.')) {
+        if (!confirm('Simpan tanda tangan?')) {
             throw new Error('Cancelled');
         }
 
         try {
-            await BapbAPI.uploadSignature(id, { signature });
+            // Menggunakan method yang sama polanya dengan BAPP
+            await BapbAPI.uploadSignature(id, {
+                signatureData: this.signatureBase64
+            });
+
             alert('Tanda tangan tersimpan! Silakan lanjutkan dengan mengirim dokumen (Submit).');
-            this.afterRender(); // Reload untuk update state tombol
+            this.afterRender();
         } catch (error) {
             alert('Gagal menyimpan tanda tangan: ' + error.message);
             throw error;
@@ -398,7 +448,7 @@ export default class BapbViewPage {
         try {
             await BapbAPI.submit(id);
             alert('Dokumen berhasil dikirim ke PIC Gudang.');
-            window.location.hash = '#/bapb'; // Kembali ke list
+            window.location.hash = '#/bapb';
         } catch (error) {
             alert('Gagal mengirim dokumen: ' + error.message);
             throw error;
@@ -406,10 +456,10 @@ export default class BapbViewPage {
     }
 
     async _handlePicApprove(id) {
-        const signature = this.canvas.toDataURL('image/png');
-        if (signature.length < 1000) {
+        // Cek signature
+        if (!this.signatureBase64) {
             alert('Tanda tangan diperlukan untuk menyetujui dokumen.');
-            throw new Error('Canvas kosong');
+            throw new Error('Signature missing');
         }
 
         if (!confirm('Setujui dan tanda tangani dokumen BAPB ini?')) {
@@ -417,13 +467,12 @@ export default class BapbViewPage {
         }
 
         try {
-            // Backend mengharapkan { signature, notes }
-            await BapbAPI.approve(id, { 
-                signature, 
-                notes: 'Approved by PIC Gudang' 
+            await BapbAPI.approve(id, {
+                signatureData: this.signatureBase64, // Kirim signatureData dari upload
+                notes: 'Approved by PIC Gudang'
             });
             alert('Dokumen berhasil disetujui!');
-            window.location.hash = '#/approval'; // Kembali ke list approval
+            window.location.hash = '#/approval';
         } catch (error) {
             alert('Gagal menyetujui dokumen: ' + error.message);
             throw error;
