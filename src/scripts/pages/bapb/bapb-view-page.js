@@ -6,8 +6,8 @@ export default class BapbViewPage {
     constructor() {
         this.documentData = null;
         this.userData = getUserData();
-
-        // State untuk menyimpan file tanda tangan (Sama seperti BAPP)
+        
+        // State untuk file upload signature
         this.signatureBase64 = null;
         this.signatureFile = null;
     }
@@ -25,7 +25,7 @@ export default class BapbViewPage {
     async afterRender() {
         try {
             const { id } = parseActivePathname();
-
+            
             // Fetch Detail BAPB
             const response = await BapbAPI.getDetail(id);
             this.documentData = response.data || response;
@@ -37,36 +37,36 @@ export default class BapbViewPage {
         }
     }
 
-    _renderWithData() {
+_renderWithData() {
         const d = this.documentData;
         const container = document.getElementById('main-content');
-
-        // --- 1. IDENTIFIKASI USER & ROLE ---
+        
         const userRole = this.userData.role;
         const vendorType = normalizeVendorType(this.userData.vendorType);
 
-        // --- 2. CEK STATUS TANDA TANGAN ---
+        // Cek status signature
         const isVendorSigned = d.vendor_signed || (d.attachments && d.attachments.some(a => a.uploaded_by === d.vendor_id && a.file_type === 'signature'));
         const isPicSigned = d.pic_gudang_signed || (d.status === 'approved');
 
-        // --- 3. TENTUKAN ALUR (STATE MACHINE) ---
+        // State Machine UI
         let showUploadPanel = false;
         let actionButtonText = '';
         let actionType = null;
         let showRejectButton = false;
         let infoMessage = '';
+        
+        // --- LOGIKA BARU: Cek apakah PIC sedang melakukan review ---
+        let isPicReviewMode = false;
 
         // >> ALUR VENDOR BARANG
         if (userRole === 'vendor' && vendorType === 'VENDOR_BARANG') {
             if (d.status === 'draft' || d.status === 'revision_required') {
                 if (!isVendorSigned) {
-                    // Step 1: Vendor Belum TTD -> Upload
                     showUploadPanel = true;
                     actionButtonText = 'SIMPAN TANDA TANGAN';
                     actionType = 'sign_vendor';
-                    infoMessage = 'Silakan upload foto tanda tangan (PNG/JPG) sebelum menyimpan.';
+                    infoMessage = 'Silakan upload foto tanda tangan Anda (PNG/JPG) sebelum menyimpan.';
                 } else {
-                    // Step 2: Vendor Sudah TTD -> Submit
                     showUploadPanel = false;
                     actionButtonText = 'KIRIM KE PIC GUDANG (SUBMIT)';
                     actionType = 'submit_vendor';
@@ -75,24 +75,26 @@ export default class BapbViewPage {
             }
         }
 
-        // >> ALUR PIC GUDANG (APPROVER)
-        if (userRole === 'pic_gudang' || userRole === 'admin') {
+        // >> ALUR PIC GUDANG
+        if (userRole === 'pic_gudang') {
             if (d.status === 'submitted' || d.status === 'in_review') {
-                showUploadPanel = true; // PIC wajib upload TTD saat approve
+                showUploadPanel = true; // PIC Wajib upload TTD
                 actionButtonText = 'SETUJUI & TANDA TANGAN';
                 actionType = 'approve_pic';
                 showRejectButton = true;
-                infoMessage = 'Periksa kelengkapan barang. Upload tanda tangan untuk menyetujui.';
+                infoMessage = 'Periksa fisik barang. Isi kolom "Diterima" dan "Kondisi", lalu upload tanda tangan untuk menyetujui.';
+                
+                // Aktifkan mode input untuk tabel
+                isPicReviewMode = true; 
             }
         }
 
-        // Status Badge UI
+        // Badge Status
         let statusBadgeClass = 'bg-slate-200 text-slate-600';
         if (d.status === 'submitted') statusBadgeClass = 'bg-blue-100 text-blue-700';
         if (d.status === 'approved') statusBadgeClass = 'bg-lime-400 text-slate-900';
         if (d.status === 'rejected' || d.status === 'revision_required') statusBadgeClass = 'bg-red-100 text-red-700';
 
-        // --- 4. RENDER HTML ---
         container.innerHTML = `
           <div class="max-w-7xl mx-auto">
             <div class="flex flex-col md:flex-row justify-between items-start mb-8 gap-6">
@@ -147,7 +149,7 @@ export default class BapbViewPage {
                             <span class="bg-slate-900 text-white text-xs font-bold px-2 py-1 rounded">${d.items ? d.items.length : 0} ITEMS</span>
                         </div>
                         <div class="p-6 space-y-4">
-                            ${this._renderItems(d.items || [])}
+                            ${this._renderItems(d.items || [], isPicReviewMode)}
                         </div>
                     </div>
 
@@ -155,11 +157,11 @@ export default class BapbViewPage {
                          <h3 class="heading-architectural text-sm mb-4 text-slate-500">STATUS PENGESAHAN</h3>
                          <div class="flex gap-4">
                             <div class="flex-1 border border-slate-200 p-3 text-center ${isVendorSigned ? 'bg-lime-50 border-lime-500' : ''}">
-                                <p class="text-[10px] font-bold uppercase mb-1">PIHAK PERTAMA (VENDOR)</p>
+                                <p class="text-[10px] font-bold uppercase mb-1">VENDOR</p>
                                 ${isVendorSigned ? '<i class="ph-fill ph-check-circle text-lime-600 text-xl"></i>' : '<span class="text-xs text-slate-400 font-bold">BELUM</span>'}
                             </div>
                             <div class="flex-1 border border-slate-200 p-3 text-center ${isPicSigned ? 'bg-lime-50 border-lime-500' : ''}">
-                                <p class="text-[10px] font-bold uppercase mb-1">PIHAK KEDUA (PIC GUDANG)</p>
+                                <p class="text-[10px] font-bold uppercase mb-1">PIC GUDANG</p>
                                 ${isPicSigned ? '<i class="ph-fill ph-check-circle text-lime-600 text-xl"></i>' : '<span class="text-xs text-slate-400 font-bold">BELUM</span>'}
                             </div>
                          </div>
@@ -167,10 +169,9 @@ export default class BapbViewPage {
                 </div>
 
                 <div class="space-y-6">
-                    
                     ${infoMessage ? `
                     <div class="bg-blue-50 border-l-4 border-blue-600 p-4">
-                        <p class="text-blue-900 text-sm font-bold leading-relaxed">${infoMessage}</p>
+                        <p class="text-blue-800 text-sm font-bold leading-relaxed">${infoMessage}</p>
                     </div>` : ''}
 
                     ${showUploadPanel ? this._renderSignaturePanel() : ''}
@@ -186,22 +187,14 @@ export default class BapbViewPage {
                             TOLAK & KEMBALIKAN (DRAFT)
                         </button>
                     ` : ''}
-
-                    ${!showUploadPanel && actionType === 'submit_vendor' ? `
-                        <div class="text-center p-4 bg-lime-50 border border-lime-200">
-                            <i class="ph-fill ph-signature text-3xl text-lime-600 mb-2"></i>
-                            <p class="text-xs font-bold text-lime-800">Tanda tangan Anda telah tersimpan.</p>
-                        </div>
-                    ` : ''}
-
                 </div>
             </div>
           </div>
         `;
 
-        // --- 5. INITIALIZE EVENTS ---
+        // --- INITIALIZE EVENTS ---
 
-        if (showUploadPanel) this._initSignatureUpload(); // Menggunakan Upload Handler
+        if (showUploadPanel) this._initSignatureUpload(); 
         if (d.status === 'approved') this._initDownloadButton();
 
         const mainBtn = document.getElementById('main-action-btn');
@@ -219,8 +212,7 @@ export default class BapbViewPage {
                     console.error(err);
                     mainBtn.disabled = false;
                     mainBtn.innerHTML = originalText;
-                    // Jika tombol aktif lagi, cek apakah signature file masih ada (untuk case upload)
-                    if (showUploadPanel && !this.signatureBase64) mainBtn.disabled = true;
+                    if(showUploadPanel && !this.signatureBase64) mainBtn.disabled = true; 
                 }
             });
         }
@@ -231,8 +223,6 @@ export default class BapbViewPage {
         }
     }
 
-    // --- HTML PARTIALS ---
-
     _renderInfoItem(label, value) {
         return `
         <div>
@@ -241,25 +231,74 @@ export default class BapbViewPage {
         </div>`;
     }
 
-    _renderItems(items) {
-        if (!items || items.length === 0) return '<p class="text-center text-slate-500 italic py-4">Tidak ada data barang.</p>';
+_renderItems(items, isEditable = false) {
+    if (!items || items.length === 0) return '<p class="text-center text-slate-500 italic py-4">Tidak ada data barang.</p>';
 
-        return items.map((item, index) => `
+    return items
+      .map(
+        (item, index) => {
+            // Logika untuk Mode Edit (PIC Gudang saat Review)
+            if (isEditable) {
+                return `
+                <div class="border border-slate-200 p-4 bg-white flex flex-col gap-3 item-row" data-item-id="${item.id}">
+                    <div class="flex justify-between items-start">
+                         <span class="font-black text-slate-900 text-sm">${index + 1}. ${item.item_name}</span>
+                         <div class="text-right">
+                            <span class="text-[10px] text-slate-500 uppercase font-bold">ORDER</span>
+                            <span class="font-black text-slate-900 block">${item.quantity_ordered} ${item.unit}</span>
+                         </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mt-2 pt-2 border-t border-slate-100">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Jml. Diterima</label>
+                            <input type="number" 
+                                   class="item-qty-received w-full border-2 border-slate-300 px-3 py-2 text-sm font-bold focus:border-lime-400 focus:outline-none"
+                                   value="${item.quantity_ordered}" 
+                                   max="${item.quantity_ordered}"
+                                   min="0"
+                                   data-id="${item.id}">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Kondisi</label>
+                            <select class="item-condition w-full border-2 border-slate-300 px-3 py-2 text-sm font-bold focus:border-lime-400 focus:outline-none"
+                                    data-id="${item.id}">
+                                <option value="BAIK" selected>BAIK</option>
+                                <option value="RUSAK">RUSAK</option>
+                                <option value="KURANG">KURANG</option>
+                                <option value="TIDAK SESUAI">TIDAK SESUAI</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // Logika Tampilan Biasa (Read Only)
+            return `
             <div class="border border-slate-200 p-4 flex justify-between items-start bg-white hover:bg-slate-50 transition-colors">
                 <div>
                     <span class="font-black text-slate-900 text-sm block mb-1">${index + 1}. ${item.item_name}</span>
-                    <span class="inline-block bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 font-bold uppercase rounded">
-                        ${item.condition || 'BAIK'}
-                    </span>
+                    <div class="flex gap-2">
+                        <span class="inline-block bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 font-bold uppercase rounded">
+                            ${item.condition || "BAIK"}
+                        </span>
+                        ${item.quantity_received && item.quantity_received !== item.quantity_ordered ? 
+                          `<span class="inline-block bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 font-bold uppercase rounded">Parsial</span>` 
+                          : ''}
+                    </div>
                 </div>
                 <div class="text-right">
-                    <span class="font-black text-xl text-slate-900 block">${item.quantity_received}</span>
+                    <span class="font-black text-xl text-slate-900 block">${item.quantity_received || item.quantity_ordered}</span>
                     <span class="text-[10px] font-bold text-slate-500 uppercase">${item.unit}</span>
                 </div>
             </div>
-        `).join('');
-    }
+        `;
+        }
+      )
+      .join("");
+  }
 
+    // --- UPLOAD PANEL UI (Sama seperti BAPP) ---
     _renderSignaturePanel() {
         return `
         <div class="bg-white border-2 border-slate-900 shadow-sharp sticky top-6">
@@ -291,13 +330,13 @@ export default class BapbViewPage {
                               <i class="ph-bold ph-x"></i>
                           </button>
                       </div>
-                      <p class="text-[10px] text-lime-600 font-bold text-center">✓ Tanda tangan siap digunakan</p>
+                      <p class="text-[10px] text-lime-600 font-bold text-center">✓ Siap untuk disubmit</p>
                  </div>
             </div>
         </div>`;
     }
 
-    // --- LOGIC: SIGNATURE UPLOAD HANDLER ---
+    // --- UPLOAD LOGIC ---
     _initSignatureUpload() {
         const fileInput = document.getElementById('signature-file');
         const uploadBtn = document.getElementById('btn-upload-signature');
@@ -310,73 +349,59 @@ export default class BapbViewPage {
 
         if (!uploadBtn || !fileInput) return;
 
-        // Trigger input file saat tombol diklik
         uploadBtn.addEventListener('click', () => fileInput.click());
 
-        // Handle saat file dipilih
         fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
             try {
-                // Tampilkan loading, sembunyikan upload button
                 uploadContainer.classList.add('hidden');
                 uploadLoading.classList.remove('hidden');
 
-                // Proses konversi ke Base64
                 const base64 = await this._handleSignatureFile(file);
-
+                
                 this.signatureFile = file;
                 this.signatureBase64 = base64;
 
-                // Tampilkan preview
                 previewImage.src = base64;
                 uploadLoading.classList.add('hidden');
                 previewContainer.classList.remove('hidden');
 
-                // Aktifkan tombol aksi utama (Simpan/Approve)
                 if (mainActionBtn) mainActionBtn.disabled = false;
 
             } catch (error) {
                 console.error(error);
                 alert(error.message);
-
-                // Reset jika error
                 uploadLoading.classList.add('hidden');
                 uploadContainer.classList.remove('hidden');
-                fileInput.value = '';
             }
         });
 
-        // Handle tombol hapus/reset
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
                 this.signatureFile = null;
                 this.signatureBase64 = null;
-
+                
                 fileInput.value = '';
                 previewImage.src = '';
-
+                
                 previewContainer.classList.add('hidden');
                 uploadContainer.classList.remove('hidden');
-
-                // Disable tombol aksi utama karena file dihapus
+                
                 if (mainActionBtn) mainActionBtn.disabled = true;
             });
         }
     }
 
-    // Helper untuk membaca file jadi Base64
     _handleSignatureFile(file) {
         return new Promise((resolve, reject) => {
             const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
             if (!validTypes.includes(file.type)) {
-                return reject(new Error('Format file tidak valid. Gunakan JPG atau PNG.'));
+                return reject(new Error('Format harus JPG atau PNG.'));
             }
-
-            const maxSize = 2 * 1024 * 1024; // 2MB
-            if (file.size > maxSize) {
-                return reject(new Error('Ukuran file terlalu besar. Maksimal 2MB.'));
+            if (file.size > 2 * 1024 * 1024) { // 2MB
+                return reject(new Error('Ukuran file maksimal 2MB.'));
             }
 
             const reader = new FileReader();
@@ -413,11 +438,10 @@ export default class BapbViewPage {
             </div>`;
     }
 
-    // --- ACTION HANDLERS ---
+    // --- HANDLERS ---
 
     async _handleVendorSign(id) {
-        // Cek apakah file sudah diupload
-        if (!this.signatureBase64) {
+        if (!this.signatureBase64) { 
             alert('Silakan upload tanda tangan terlebih dahulu.');
             throw new Error('Signature missing');
         }
@@ -427,13 +451,10 @@ export default class BapbViewPage {
         }
 
         try {
-            // Menggunakan method yang sama polanya dengan BAPP
-            await BapbAPI.uploadSignature(id, {
-                signatureData: this.signatureBase64
-            });
-
+            // Menggunakan key 'signatureData' sesuai requirement backend
+            await BapbAPI.uploadSignature(id, { signatureData: this.signatureBase64 });
             alert('Tanda tangan tersimpan! Silakan lanjutkan dengan mengirim dokumen (Submit).');
-            this.afterRender();
+            this.afterRender(); 
         } catch (error) {
             alert('Gagal menyimpan tanda tangan: ' + error.message);
             throw error;
@@ -441,7 +462,7 @@ export default class BapbViewPage {
     }
 
     async _handleVendorSubmit(id) {
-        if (!confirm('Apakah Anda yakin ingin mengirim dokumen ini ke PIC Gudang? Dokumen tidak dapat diubah setelah dikirim.')) {
+        if (!confirm('Kirim dokumen ke PIC Gudang? Dokumen tidak dapat diubah setelah dikirim.')) {
             throw new Error('Cancelled');
         }
 
@@ -456,23 +477,55 @@ export default class BapbViewPage {
     }
 
     async _handlePicApprove(id) {
-        // Cek signature
         if (!this.signatureBase64) {
             alert('Tanda tangan diperlukan untuk menyetujui dokumen.');
             throw new Error('Signature missing');
         }
 
-        if (!confirm('Setujui dan tanda tangani dokumen BAPB ini?')) {
+        // --- NEW: Collect Item Data from Inputs ---
+        const itemInputs = document.querySelectorAll('.item-row');
+        const itemsData = [];
+        let validationError = null;
+
+        if (itemInputs.length > 0) {
+            itemInputs.forEach(row => {
+                const itemId = row.getAttribute('data-item-id');
+                const qtyInput = row.querySelector('.item-qty-received');
+                const conditionInput = row.querySelector('.item-condition');
+                
+                const qtyReceived = parseFloat(qtyInput.value);
+                const condition = conditionInput.value;
+
+                if (isNaN(qtyReceived) || qtyReceived < 0) {
+                    validationError = 'Jumlah barang tidak valid.';
+                }
+
+                itemsData.push({
+                    id: itemId, // ID Item dari database
+                    quantity_received: qtyReceived,
+                    condition: condition
+                });
+            });
+        }
+
+        if (validationError) {
+            alert(validationError);
+            throw new Error(validationError);
+        }
+        // ------------------------------------------
+
+        if (!confirm('Pastikan jumlah dan kondisi barang sudah sesuai.\nSetujui dan tanda tangani dokumen BAPB ini?')) {
             throw new Error('Cancelled');
         }
 
         try {
-            await BapbAPI.approve(id, {
-                signatureData: this.signatureBase64, // Kirim signatureData dari upload
-                notes: 'Approved by PIC Gudang'
+            await BapbAPI.approve(id, { 
+                signature: this.signatureBase64, 
+                notes: 'Approved by PIC Gudang',
+                items: itemsData // Mengirim array items yang sudah diupdate
             });
-            alert('Dokumen berhasil disetujui!');
-            window.location.hash = '#/approval';
+            alert('Dokumen berhasil disetujui dan stok diperbarui!');
+            window.location.hash = '#/approval'; 
         } catch (error) {
             alert('Gagal menyetujui dokumen: ' + error.message);
             throw error;
@@ -480,7 +533,7 @@ export default class BapbViewPage {
     }
 
     async _handleReject(id) {
-        const reason = prompt("Masukkan alasan penolakan (Dokumen akan dikembalikan ke Vendor untuk diperbaiki):");
+        const reason = prompt("Masukkan alasan penolakan:");
         if (!reason) return;
 
         try {

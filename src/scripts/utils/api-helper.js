@@ -115,23 +115,28 @@ const BapbAPI = {
   async getDetail(id) {
     return API.get(API_ENDPOINT.GET_BAPB_DETAIL(id));
   },
-
+  
   async submit(id) {
     return API.post(API_ENDPOINT.SUBMIT_BAPB(id), {});
   },
-
+  
   async uploadSignature(id, data) {
     return API.post(API_ENDPOINT.UPLOAD_SIGNATURE_BAPB(id), data);
   },
+// Di dalam const BapbAPI = { ... }
+  
+  async approve(id, payload) {
+    const dataToSend = typeof payload === 'string' 
+        ? { signature: payload } 
+        : payload;
 
-  async approve(id, data) {
-    return API.post(API_ENDPOINT.APPROVE_BAPB(id), data);
+    return API.post(API_ENDPOINT.APPROVE_BAPB(id), dataToSend);
   },
-
+  
   async reject(id, data) {
     return API.post(API_ENDPOINT.REJECT_BAPB(id), data);
   },
-
+  
   async download(id, filename) {
     return API.get(API_ENDPOINT.DOWNLOAD_BAPB(id));
   }
@@ -149,27 +154,27 @@ const BappAPI = {
   async getDetail(id) {
     return API.get(API_ENDPOINT.GET_BAPP_DETAIL(id));
   },
-
+  
   async submit(id) {
     console.log('📤 BAPP Submit Request:', { id, endpoint: API_ENDPOINT.SUBMIT_BAPP(id) });
     return API.post(API_ENDPOINT.SUBMIT_BAPP(id), {});
   },
-
+  
   async uploadSignature(id, data) {
     console.log('📝 BAPP Upload Signature:', { id, endpoint: API_ENDPOINT.UPLOAD_SIGNATURE_BAPP(id) });
     return API.post(API_ENDPOINT.UPLOAD_SIGNATURE_BAPP(id), data);
   },
-
+  
   async approve(id, data) {
     console.log('✅ BAPP Approve Request:', { id, endpoint: API_ENDPOINT.APPROVE_BAPP(id) });
     return API.post(API_ENDPOINT.APPROVE_BAPP(id), data);
   },
-
+  
   async reject(id, data) {
     console.log('❌ BAPP Reject Request:', { id, endpoint: API_ENDPOINT.REJECT_BAPP(id) });
     return API.post(API_ENDPOINT.REJECT_BAPP(id), data);
   },
-
+  
   async download(id, filename) {
     return API.get(API_ENDPOINT.DOWNLOAD_BAPP(id));
   }
