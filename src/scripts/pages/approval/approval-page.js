@@ -58,7 +58,7 @@ export default class ApprovalListPage {
       // Gabungkan semua dokumen
       const allDocuments = [...bapbList, ...bappList];
 
-      // Filter berdasarkan role DAN status tanda tangan
+      // Filter berdasarkan role DAN status
       this.documents = this._filterDocumentsByRole(allDocuments);
 
       console.log('✅ Filtered Documents for Approval:', this.documents); 
@@ -72,9 +72,12 @@ export default class ApprovalListPage {
   }
 
   _filterDocumentsByRole(documents) {
-    // Admin: lihat semua yang belum complete
     if (this.userRole === 'admin') {
       return documents.filter(doc => {
+        // Tampilkan yang statusnya submitted (menunggu action)
+        if (doc.status === 'submitted' || doc.status === 'in_review') return true;
+        
+        // Fallback ke pengecekan signature lama jika status tidak cukup
         if (doc.type === 'BAPB') return !doc.vendor_signed || !doc.pic_gudang_signed;
         if (doc.type === 'BAPP') return !doc.vendor_signed || !doc.approver_signed;
         return false;
@@ -85,33 +88,42 @@ export default class ApprovalListPage {
     //              VENDOR FILTERING
     // ============================================
     if (this.userRole === 'vendor') {
-      // Gunakan normalizeVendorType yang sudah diimport
       const normalizedType = normalizeVendorType(this.vendorType);
       
-      // Vendor Barang: hanya BAPB yang belum vendor sign
+      // Vendor Barang: hanya BAPB status Draft/Revisi
       if (normalizedType === 'VENDOR_BARANG') {
-        return documents.filter(doc => doc.type === 'BAPB' && !doc.vendor_signed);
+        return documents.filter(doc => 
+          doc.type === 'BAPB' && 
+          (doc.status === 'draft' || doc.status === 'revision_required')
+        );
       }
       
-      // Vendor Jasa: hanya BAPP yang belum vendor sign
+      // Vendor Jasa: hanya BAPP status Draft/Revisi
       if (normalizedType === 'VENDOR_JASA') {
-        return documents.filter(doc => doc.type === 'BAPP' && !doc.vendor_signed);
+        return documents.filter(doc => 
+          doc.type === 'BAPP' && 
+          (doc.status === 'draft' || doc.status === 'revision_required')
+        );
       }
       
       return [];
     }
 
-    // PIC Gudang: hanya BAPB yang sudah vendor sign tapi belum PIC sign
+    // ============================================
+    //              PIC GUDANG & APPROVER
+    // ============================================
+
     if (this.userRole === 'pic_gudang') {
       return documents.filter(doc => 
-        doc.type === 'BAPB' && doc.vendor_signed && !doc.pic_gudang_signed
+        doc.type === 'BAPB' && 
+        (doc.status === 'submitted' || doc.status === 'in_review')
       );
     }
 
-    // Approver: hanya BAPP yang sudah vendor sign tapi belum approver sign
     if (this.userRole === 'approver') {
       return documents.filter(doc => 
-        doc.type === 'BAPP' && doc.vendor_signed && !doc.approver_signed
+        doc.type === 'BAPP' && 
+        (doc.status === 'submitted' || doc.status === 'in_review')
       );
     }
 
@@ -135,7 +147,7 @@ export default class ApprovalListPage {
           <div>
               <h2 class="heading-architectural text-4xl text-slate-900 mb-3">APPROVAL DOKUMEN</h2>
               <p class="text-slate-600 text-xs font-bold uppercase tracking-widest border-l-4 border-lime-400 pl-4">
-                DAFTAR DOKUMEN MENUNGGU TANDA TANGAN
+                DAFTAR DOKUMEN MENUNGGU TANDA TANGAN / PERSETUJUAN ANDA
               </p>
               <div class="flex items-center gap-3 mt-4">
                   <span class="inline-flex items-center gap-2 bg-amber-100 border-2 border-amber-500 px-4 py-2 text-xs font-black tracking-tight">
@@ -163,7 +175,7 @@ export default class ApprovalListPage {
         <div class="bg-white border-2 border-slate-900 p-16 text-center">
             <i class="ph-bold ph-check-circle text-6xl text-lime-400 mb-4"></i>
             <h3 class="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">TIDAK ADA DOKUMEN PENDING</h3>
-            <p class="text-slate-600 font-semibold mb-6">Semua dokumen sudah ditandatangani atau tidak ada dokumen yang perlu Anda tandatangani saat ini</p>
+            <p class="text-slate-600 font-semibold mb-6">Saat ini tidak ada dokumen yang memerlukan tindakan Anda.</p>
             <a href="#/" class="inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-4 border-2 border-slate-900 font-black uppercase text-xs">
                 <i class="ph-bold ph-house"></i> KEMBALI KE DASHBOARD
             </a>
@@ -185,13 +197,22 @@ export default class ApprovalListPage {
       const typeColor = docType === 'BAPB' ? 'blue-500' : 'purple-500';
       const typeIcon = docType === 'BAPB' ? 'ph-package' : 'ph-briefcase';
 
-      let signatureStatus = '';
-      if (docType === 'BAPB') {
-        if (!doc.vendor_signed) signatureStatus = 'Menunggu TTD Vendor';
-        else if (!doc.pic_gudang_signed) signatureStatus = 'Menunggu TTD PIC Gudang';
-      } else if (docType === 'BAPP') {
-        if (!doc.vendor_signed) signatureStatus = 'Menunggu TTD Vendor';
-        else if (!doc.approver_signed) signatureStatus = 'Menunggu TTD Approver';
+      // Logic Label Status yang lebih dinamis berdasarkan 'status'
+      let signatureStatus = 'Menunggu Tindakan';
+      let statusClass = 'bg-amber-100 text-amber-800 border-amber-500';
+
+      if (doc.status === 'draft') {
+        signatureStatus = 'Draft (Perlu Submit)';
+        statusClass = 'bg-slate-200 text-slate-700 border-slate-400';
+      } else if (doc.status === 'submitted') {
+        if (docType === 'BAPB') signatureStatus = 'Menunggu Approval PIC Gudang';
+        else signatureStatus = 'Menunggu Approval Direksi';
+      } else if (doc.status === 'revision_required') {
+        signatureStatus = 'Perlu Revisi';
+        statusClass = 'bg-red-100 text-red-800 border-red-500';
+      } else if (doc.status === 'approved') {
+        signatureStatus = 'Selesai';
+        statusClass = 'bg-lime-100 text-lime-800 border-lime-500';
       }
 
       const targetLink = `#/${docType.toLowerCase()}/${doc.id}`;
@@ -207,9 +228,9 @@ export default class ApprovalListPage {
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-3 mb-2">
                                 <h3 class="text-lg font-black text-slate-900 truncate">${docNumber}</h3>
-                                <span class="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 px-3 py-1.5 border-2 border-amber-500 text-xs font-black uppercase">
-                                    <span class="w-1.5 h-1.5 bg-amber-600 rounded-full animate-pulse"></span>
-                                    PENDING
+                                <span class="inline-flex items-center gap-1.5 ${statusClass} px-3 py-1.5 border-2 text-xs font-black uppercase">
+                                    <span class="w-1.5 h-1.5 bg-current rounded-full animate-pulse"></span>
+                                    ${doc.status ? doc.status.replace('_', ' ') : 'PENDING'}
                                 </span>
                                 <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-800 px-3 py-1.5 border-2 border-slate-300 text-xs font-black uppercase">
                                     ${docType}
@@ -224,19 +245,17 @@ export default class ApprovalListPage {
                                     <i class="ph-fill ph-calendar text-slate-900"></i>
                                     <span class="text-slate-700 font-semibold">${formattedDate}</span>
                                 </div>
-                                ${signatureStatus ? `
                                 <div class="md:col-span-2 flex items-center gap-2">
-                                    <i class="ph-fill ph-info text-amber-600"></i>
-                                    <span class="text-amber-700 font-bold text-xs uppercase">${signatureStatus}</span>
+                                    <i class="ph-fill ph-info text-slate-500"></i>
+                                    <span class="text-slate-600 font-bold text-xs uppercase">${signatureStatus}</span>
                                 </div>
-                                ` : ''}
                             </div>
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
                         <a href="${targetLink}" 
                            class="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs hover-sharp">
-                            <i class="ph-fill ph-signature"></i> TANDA TANGAN
+                            <i class="ph-fill ph-pencil-simple"></i> PROSES
                         </a>
                     </div>
                 </div>
