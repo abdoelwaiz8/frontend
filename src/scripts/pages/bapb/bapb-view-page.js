@@ -37,7 +37,7 @@ export default class BapbViewPage {
         }
     }
 
-    _renderWithData() {
+_renderWithData() {
         const d = this.documentData;
         const container = document.getElementById('main-content');
         
@@ -54,6 +54,9 @@ export default class BapbViewPage {
         let actionType = null;
         let showRejectButton = false;
         let infoMessage = '';
+        
+        // --- LOGIKA BARU: Cek apakah PIC sedang melakukan review ---
+        let isPicReviewMode = false;
 
         // >> ALUR VENDOR BARANG
         if (userRole === 'vendor' && vendorType === 'VENDOR_BARANG') {
@@ -79,7 +82,10 @@ export default class BapbViewPage {
                 actionButtonText = 'SETUJUI & TANDA TANGAN';
                 actionType = 'approve_pic';
                 showRejectButton = true;
-                infoMessage = 'Periksa kelengkapan barang. Upload tanda tangan untuk menyetujui.';
+                infoMessage = 'Periksa fisik barang. Isi kolom "Diterima" dan "Kondisi", lalu upload tanda tangan untuk menyetujui.';
+                
+                // Aktifkan mode input untuk tabel
+                isPicReviewMode = true; 
             }
         }
 
@@ -143,7 +149,7 @@ export default class BapbViewPage {
                             <span class="bg-slate-900 text-white text-xs font-bold px-2 py-1 rounded">${d.items ? d.items.length : 0} ITEMS</span>
                         </div>
                         <div class="p-6 space-y-4">
-                            ${this._renderItems(d.items || [])}
+                            ${this._renderItems(d.items || [], isPicReviewMode)}
                         </div>
                     </div>
 
@@ -163,7 +169,6 @@ export default class BapbViewPage {
                 </div>
 
                 <div class="space-y-6">
-                    
                     ${infoMessage ? `
                     <div class="bg-blue-50 border-l-4 border-blue-600 p-4">
                         <p class="text-blue-800 text-sm font-bold leading-relaxed">${infoMessage}</p>
@@ -226,25 +231,69 @@ export default class BapbViewPage {
         </div>`;
     }
 
-  _renderItems(items) {
+_renderItems(items, isEditable = false) {
     if (!items || items.length === 0) return '<p class="text-center text-slate-500 italic py-4">Tidak ada data barang.</p>';
 
     return items
       .map(
-        (item, index) => `
+        (item, index) => {
+            // Logika untuk Mode Edit (PIC Gudang saat Review)
+            if (isEditable) {
+                return `
+                <div class="border border-slate-200 p-4 bg-white flex flex-col gap-3 item-row" data-item-id="${item.id}">
+                    <div class="flex justify-between items-start">
+                         <span class="font-black text-slate-900 text-sm">${index + 1}. ${item.item_name}</span>
+                         <div class="text-right">
+                            <span class="text-[10px] text-slate-500 uppercase font-bold">ORDER</span>
+                            <span class="font-black text-slate-900 block">${item.quantity_ordered} ${item.unit}</span>
+                         </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mt-2 pt-2 border-t border-slate-100">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Jml. Diterima</label>
+                            <input type="number" 
+                                   class="item-qty-received w-full border-2 border-slate-300 px-3 py-2 text-sm font-bold focus:border-lime-400 focus:outline-none"
+                                   value="${item.quantity_ordered}" 
+                                   max="${item.quantity_ordered}"
+                                   min="0"
+                                   data-id="${item.id}">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Kondisi</label>
+                            <select class="item-condition w-full border-2 border-slate-300 px-3 py-2 text-sm font-bold focus:border-lime-400 focus:outline-none"
+                                    data-id="${item.id}">
+                                <option value="BAIK" selected>BAIK</option>
+                                <option value="RUSAK">RUSAK</option>
+                                <option value="KURANG">KURANG</option>
+                                <option value="TIDAK SESUAI">TIDAK SESUAI</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // Logika Tampilan Biasa (Read Only)
+            return `
             <div class="border border-slate-200 p-4 flex justify-between items-start bg-white hover:bg-slate-50 transition-colors">
                 <div>
                     <span class="font-black text-slate-900 text-sm block mb-1">${index + 1}. ${item.item_name}</span>
-                    <span class="inline-block bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 font-bold uppercase rounded">
-                        ${item.condition || "BAIK"}
-                    </span>
+                    <div class="flex gap-2">
+                        <span class="inline-block bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 font-bold uppercase rounded">
+                            ${item.condition || "BAIK"}
+                        </span>
+                        ${item.quantity_received && item.quantity_received !== item.quantity_ordered ? 
+                          `<span class="inline-block bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 font-bold uppercase rounded">Parsial</span>` 
+                          : ''}
+                    </div>
                 </div>
                 <div class="text-right">
-                    <span class="font-black text-xl text-slate-900 block">${item.quantity_ordered || item.quantity_received || 0}</span>
+                    <span class="font-black text-xl text-slate-900 block">${item.quantity_received || item.quantity_ordered}</span>
                     <span class="text-[10px] font-bold text-slate-500 uppercase">${item.unit}</span>
                 </div>
             </div>
-        `
+        `;
+        }
       )
       .join("");
   }
@@ -433,16 +482,49 @@ export default class BapbViewPage {
             throw new Error('Signature missing');
         }
 
-        if (!confirm('Setujui dan tanda tangani dokumen BAPB ini?')) {
+        // --- NEW: Collect Item Data from Inputs ---
+        const itemInputs = document.querySelectorAll('.item-row');
+        const itemsData = [];
+        let validationError = null;
+
+        if (itemInputs.length > 0) {
+            itemInputs.forEach(row => {
+                const itemId = row.getAttribute('data-item-id');
+                const qtyInput = row.querySelector('.item-qty-received');
+                const conditionInput = row.querySelector('.item-condition');
+                
+                const qtyReceived = parseFloat(qtyInput.value);
+                const condition = conditionInput.value;
+
+                if (isNaN(qtyReceived) || qtyReceived < 0) {
+                    validationError = 'Jumlah barang tidak valid.';
+                }
+
+                itemsData.push({
+                    id: itemId, // ID Item dari database
+                    quantity_received: qtyReceived,
+                    condition: condition
+                });
+            });
+        }
+
+        if (validationError) {
+            alert(validationError);
+            throw new Error(validationError);
+        }
+        // ------------------------------------------
+
+        if (!confirm('Pastikan jumlah dan kondisi barang sudah sesuai.\nSetujui dan tanda tangani dokumen BAPB ini?')) {
             throw new Error('Cancelled');
         }
 
         try {
             await BapbAPI.approve(id, { 
                 signatureData: this.signatureBase64, 
-                notes: 'Approved by PIC Gudang' 
+                notes: 'Approved by PIC Gudang',
+                items: itemsData // Mengirim array items yang sudah diupdate
             });
-            alert('Dokumen berhasil disetujui!');
+            alert('Dokumen berhasil disetujui dan stok diperbarui!');
             window.location.hash = '#/approval'; 
         } catch (error) {
             alert('Gagal menyetujui dokumen: ' + error.message);

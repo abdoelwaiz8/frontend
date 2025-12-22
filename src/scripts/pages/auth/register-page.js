@@ -28,7 +28,7 @@ export default class RegisterPage {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
                             <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">NAMA LENGKAP</label>
-                            <input type="text" id="name" class="w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm" placeholder="Nama Lengkap" required>
+                            <input type="text" id="name" class="w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm uppercase" placeholder="NAMA ANDA" required>
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">NO. HANDPHONE</label>
@@ -38,23 +38,18 @@ export default class RegisterPage {
 
                     <div>
                         <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">NAMA PERUSAHAAN</label>
-                        <input type="text" id="company" class="w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm" placeholder="PT Contoh Sejahtera" required>
+                        <input type="text" id="company" class="w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm uppercase" placeholder="PT CONTOH SEJAHTERA" required>
                     </div>
 
                     <div>
                         <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">EMAIL PERUSAHAAN</label>
-                        <input type="email" id="email" class="w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm" placeholder="vendor@example.com" required>
+                        <input type="email" id="email" class="w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm uppercase" placeholder="VENDOR@EXAMPLE.COM" required>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
                             <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">PASSWORD</label>
-                            <div class="relative">
-                                <input type="password" id="password" class="w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm" required>
-                                <button type="button" id="toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors">
-                                    <i class="ph-bold ph-eye text-lg" id="eye-icon"></i>
-                                </button>
-                            </div>
+                            <input type="password" id="password" class="w-full px-4 py-3 border-2 border-slate-900 focus:border-lime-400 outline-none font-bold text-sm" required>
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-slate-900 mb-2 uppercase tracking-widest">TIPE AKUN</label>
@@ -105,23 +100,6 @@ export default class RegisterPage {
 
     this._initRegisterForm();
     this._initRoleToggle();
-    this._initPasswordVisibility(); // Inisialisasi fitur mata
-  }
-
-  _initPasswordVisibility() {
-    const toggleBtn = document.getElementById('toggle-password');
-    const passwordInput = document.getElementById('password');
-    const eyeIcon = document.getElementById('eye-icon');
-
-    if (!toggleBtn || !passwordInput) return;
-
-    toggleBtn.addEventListener('click', () => {
-      const isPassword = passwordInput.type === 'password';
-      passwordInput.type = isPassword ? 'text' : 'password';
-
-      // Ganti icon (Phosphor Icons)
-      eyeIcon.className = isPassword ? 'ph-bold ph-eye-slash text-lg' : 'ph-bold ph-eye text-lg';
-    });
   }
 
   _initRoleToggle() {
@@ -133,18 +111,21 @@ export default class RegisterPage {
 
     const toggleVendorType = () => {
       const selectedRole = roleSelect.value;
-
+      
       if (selectedRole === 'vendor') {
         vendorTypeContainer.classList.remove('hidden');
         vendorTypeSelect.required = true;
       } else {
         vendorTypeContainer.classList.add('hidden');
         vendorTypeSelect.required = false;
-        vendorTypeSelect.value = '';
+        vendorTypeSelect.value = ''; // Clear selection
       }
     };
 
+    // Initial check
     toggleVendorType();
+
+    // Listen for changes
     roleSelect.addEventListener('change', toggleVendorType);
   }
 
@@ -160,9 +141,11 @@ export default class RegisterPage {
       const submitBtn = registerForm.querySelector('button[type="submit"]');
       const originalText = submitBtn.innerHTML;
 
-      let selectedRole = document.getElementById('role').value;
-      const vendorType = document.getElementById('vendorType').value;
+      // 1. Ambil nilai mentah dari form
+      let selectedRole = document.getElementById('role').value; 
+      const vendorType = document.getElementById('vendorType').value; 
 
+      // 2. Validasi UI: Jika Vendor dipilih tapi Tipe kosong
       if (selectedRole === 'vendor' && !vendorType) {
         msgContainer.className = 'mb-6 p-4 border-2 border-red-500 bg-red-100 text-red-800 text-xs font-bold uppercase';
         msgContainer.innerText = 'GAGAL: VENDOR HARUS MEMILIH TIPE (BARANG ATAU JASA)';
@@ -170,38 +153,50 @@ export default class RegisterPage {
         return;
       }
 
-      // Logic Role Tetap (Robust)
+      // 3. LOGIKA UTAMA: Ubah 'vendor' menjadi role spesifik
       let finalRoleToSend = selectedRole;
+
       if (selectedRole === 'vendor') {
         if (vendorType === 'VENDOR_BARANG') {
-          finalRoleToSend = 'vendor_barang';
+            finalRoleToSend = 'vendor_barang'; // <-- KITA PAKSA KE SINI
         } else if (vendorType === 'VENDOR_JASA') {
-          finalRoleToSend = 'vendor_jasa';
+            finalRoleToSend = 'vendor_jasa';   // <-- KITA PAKSA KE SINI
         }
       }
 
+      // 4. Susun Payload
       const formData = {
         email: document.getElementById('email').value.toLowerCase().trim(),
         password: document.getElementById('password').value,
         name: document.getElementById('name').value.trim(),
-        role: finalRoleToSend,
+        
+        // Di sini kuncinya: Role yang dikirim bukan lagi 'vendor', tapi 'vendor_barang'/'vendor_jasa'
+        role: finalRoleToSend, 
+        
         phone: document.getElementById('phone').value.trim(),
         company: document.getElementById('company').value.trim(),
-        ...(selectedRole === 'vendor' && {
-          vendor_type: vendorType,
-          type: vendorType
+        
+        // Kita tetap kirim field tambahan untuk kompatibilitas database
+        ...(selectedRole === 'vendor' && { 
+            vendor_type: vendorType,
+            type: vendorType 
         })
       };
 
+      console.log('📤 Sending Registration Payload:', formData);
+
+      // 5. Kirim ke API
       submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> MEMPROSES...';
       submitBtn.disabled = true;
       msgContainer.classList.add('hidden');
 
       try {
         const response = await API.post(API_ENDPOINT.REGISTER, formData);
+        
+        console.log('✅ Registration successful:', response);
 
         msgContainer.className = 'mb-6 p-4 border-2 border-lime-500 bg-lime-100 text-lime-800 text-xs font-bold uppercase';
-        msgContainer.innerHTML = '<i class="ph-bold ph-check-circle text-lg mr-1 align-middle"></i> REGISTRASI BERHASIL! MENGALIHKAN...';
+        msgContainer.innerHTML = '<i class="ph-bold ph-check-circle text-lg mr-1 align-middle"></i> REGISTRASI BERHASIL! MENGALIHKAN KE LOGIN...';
         msgContainer.classList.remove('hidden');
 
         setTimeout(() => {
@@ -209,9 +204,14 @@ export default class RegisterPage {
         }, 1500);
 
       } catch (error) {
+        console.error('❌ Register Error:', error);
+
+        // Pesan Error Handling Khusus
         let errorMsg = error.message;
-        if (errorMsg.includes('Must be one of')) {
-          errorMsg = `SISTEM MENOLAK ROLE: "${finalRoleToSend}".`;
+        
+        // Jika Backend menolak 'vendor_barang', kita beri pesan jelas ke user
+        if (errorMsg.includes('Invalid role') || errorMsg.includes('Must be one of')) {
+            errorMsg = `SISTEM MENOLAK ROLE: "${finalRoleToSend}". Mohon hubungi admin untuk update validasi Backend agar menerima role ini.`;
         }
 
         msgContainer.className = 'mb-6 p-4 border-2 border-red-500 bg-red-100 text-red-800 text-xs font-bold uppercase';

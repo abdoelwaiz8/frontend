@@ -1,5 +1,4 @@
-// File: src/scripts/pages/bapp/bapp-list-page.js
-import { API, getUserData } from '../../utils/api-helper';
+import { API } from '../../utils/api-helper';
 import API_ENDPOINT from '../../globals/api-endpoint';
 
 export default class BappListPage {
@@ -51,7 +50,7 @@ export default class BappListPage {
         status: doc.status || 'DRAFT',
         createdAt: doc.created_at,
         vendorName: doc.vendor?.name || 'N/A',
-        servicesCount: doc.items?.length || 0,
+        servicesCount: doc.items?.length || 0, // Bisa juga doc.services?.length jika ada field services
       }));
 
       await this._renderList();
@@ -62,11 +61,6 @@ export default class BappListPage {
 
   async _renderList() {
     const container = document.getElementById('main-content');
-
-    // ✅ Logic pengecekan role
-    const userData = getUserData();
-    const userRole = userData?.role || '';
-    const isInternalRole = ['pic_gudang', 'admin', 'approver'].includes(userRole);
 
     const stats = {
       total: this.documents.length,
@@ -96,12 +90,10 @@ export default class BappListPage {
               </div>
           </div>
           
-          ${!isInternalRole ? `
           <a href="#/bapp/create" 
-              class="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 px-6 py-4 border-2 border-slate-900 font-black uppercase text-xs hover-sharp transition-all">
+             class="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 px-6 py-4 border-2 border-slate-900 font-black uppercase text-xs hover-sharp transition-all">
               <i class="ph-bold ph-plus-circle text-lg"></i> BUAT BAPP BARU
           </a>
-          ` : ''}
       </div>
 
       <div class="bg-white border-2 border-slate-900 p-6 mb-8">
@@ -136,21 +128,14 @@ export default class BappListPage {
 
   _renderDocuments() {
     if (this.documents.length === 0) {
-      const userData = getUserData();
-      const userRole = userData?.role || '';
-      const isInternalRole = ['pic_gudang', 'admin', 'approver'].includes(userRole);
-
       return `
         <div class="bg-white border-2 border-slate-900 p-16 text-center">
             <i class="ph-bold ph-file-dashed text-6xl text-slate-300 mb-4"></i>
             <h3 class="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">BELUM ADA DOKUMEN</h3>
             <p class="text-slate-600 font-semibold mb-6">Mulai dengan membuat BAPP baru</p>
-            
-            ${!isInternalRole ? `
             <a href="#/bapp/create" class="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 px-6 py-4 border-2 border-slate-900 font-black uppercase text-xs">
                 <i class="ph-bold ph-plus-circle"></i> BUAT BAPP PERTAMA
             </a>
-            ` : ''}
         </div>
       `;
     }
@@ -216,15 +201,15 @@ export default class BappListPage {
     if (doc.status === 'DRAFT') {
       return `
         <a href="#/bapp/edit/${doc.id}" 
-            class="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs">
-             <i class="ph-fill ph-pencil-simple"></i> EDIT
+           class="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs">
+            <i class="ph-fill ph-pencil-simple"></i> EDIT
         </a>
       `;
     } else {
       return `
         <a href="#/bapp/${doc.id}" 
-            class="inline-flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-900 px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs">
-             <i class="ph-fill ph-eye"></i> LIHAT
+           class="inline-flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-900 px-5 py-3 border-2 border-slate-900 font-black transition-all uppercase tracking-tight text-xs">
+            <i class="ph-fill ph-eye"></i> LIHAT
         </a>
       `;
     }
@@ -262,19 +247,16 @@ export default class BappListPage {
   }
 
   _showError(msg) {
-    const container = document.getElementById('main-content');
-    if (container) {
-      container.innerHTML = `
-        <div class="bg-red-50 border-2 border-red-500 p-8 text-center">
-          <i class="ph-bold ph-warning text-5xl text-red-500 mb-4"></i>
-          <h3 class="font-black text-red-900 text-xl mb-2 uppercase">ERROR</h3>
-          <p class="text-red-700 font-bold mb-6">${msg}</p>
-          <a href="#/" class="inline-flex items-center gap-2 bg-red-500 text-white px-6 py-3 font-bold">
-            <i class="ph-bold ph-arrow-left"></i> KEMBALI
-          </a>
-        </div>
-      `;
-    }
+    document.getElementById('main-content').innerHTML = `
+      <div class="bg-red-50 border-2 border-red-500 p-8 text-center">
+        <i class="ph-bold ph-warning text-5xl text-red-500 mb-4"></i>
+        <h3 class="font-black text-red-900 text-xl mb-2 uppercase">ERROR</h3>
+        <p class="text-red-700 font-bold mb-6">${msg}</p>
+        <a href="#/" class="inline-flex items-center gap-2 bg-red-500 text-white px-6 py-3 font-bold">
+          <i class="ph-bold ph-arrow-left"></i> KEMBALI
+        </a>
+      </div>
+    `;
   }
 
   _updatePageTitle() {
