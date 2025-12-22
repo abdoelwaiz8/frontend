@@ -1,68 +1,83 @@
-# App Starter Project with Webpack
+# Sistem Manajemen BAPB & BAPP (Frontend)
 
-Proyek ini adalah setup dasar untuk aplikasi web yang menggunakan webpack untuk proses bundling, Babel untuk transpile JavaScript, serta mendukung proses build dan serving aplikasi.
+Aplikasi frontend berbasis web untuk pengelolaan dokumen BAPB (Berita Acara Pemeriksaan Barang) dan BAPP (Berita Acara Pemeriksaan Pekerjaan). Proyek ini dibangun menggunakan **Vanilla JavaScript** dengan **Webpack** sebagai bundler.
 
-## Table of Contents
+## Fitur Utama
 
-- [Getting Started](#getting-started)
-- [Scripts](#scripts)
-- [Project Structure](#project-structure)
+Berdasarkan struktur routing aplikasi, berikut adalah fitur yang tersedia:
 
-## Getting Started
+- **Autentikasi**: Login dan Register pengguna.
+- **Dashboard**: Halaman utama ringkasan sistem.
+- **Modul BAPB**:
+  - Membuat pengajuan BAPB.
+  - Melihat daftar dan detail BAPB.
+  - *Target User*: Vendor Barang & PIC Gudang.
+- **Modul BAPP**:
+  - Membuat pengajuan BAPP.
+  - Melihat daftar dan detail BAPP.
+  - *Target User*: Vendor Jasa & Approver.
+- **Approval System**: Halaman persetujuan dokumen untuk PIC Gudang & Approver.
+- **Dokumen**: Fitur unduh (download) dokumen yang telah selesai.
+- **Pembayaran (Payment)**: Manajemen status pembayaran (Khusus Admin).
 
-### Prerequisites
+## Prasyarat
 
-- [Node.js](https://nodejs.org/) (disarankan versi 12 atau lebih tinggi)
-- [npm](https://www.npmjs.com/) (Node package manager)
+- [Node.js](https://nodejs.org/) (Versi 12+)
+- [npm](https://www.npmjs.com/)
 
-### Installation
+## Instalasi & Menjalankan Project
 
-1. Download starter project [di sini](https://raw.githubusercontent.com/dicodingacademy/a219-web-intermediate-labs/099-shared-files/starter-project-with-webpack.zip).
-2. Lakukan unzip file.
-3. Pasang seluruh dependencies dengan perintah berikut.
-   ```shell
-   npm install
-   ```
+1.  **Instalasi Dependencies**
+    Jalankan perintah berikut untuk mengunduh seluruh library yang dibutuhkan:
+    ```shell
+    npm install
+    ```
 
-## Scripts
+2.  **Mode Pengembangan (Development)**
+    Menjalankan server lokal dengan fitur *hot-reload* untuk pengembangan:
+    ```shell
+    npm run start-dev
+    ```
+    Akses aplikasi di `http://localhost:8080` (atau port yang tertera di terminal).
 
-- Build for Production:
-  ```shell
-  npm run build
-  ```
-  Script ini menjalankan webpack dalam mode production menggunakan konfigurasi `webpack.prod.js` dan menghasilkan sejumlah file build ke direktori `dist`.
+3.  **Build Production**
+    Membuat bundle aplikasi yang siap untuk dideploy ke folder `dist`:
+    ```shell
+    npm run build
+    ```
 
-- Start Development Server:
-  ```shell
-  npm run start-dev
-  ```
-  Script ini menjalankan server pengembangan webpack dengan fitur live reload dan mode development sesuai konfigurasi di`webpack.dev.js`.
+4.  **Serve Production Build**
+    Menjalankan hasil build (folder `dist`) menggunakan http-server:
+    ```shell
+    npm run serve
+    ```
 
-- Serve:
-  ```shell
-  npm run serve
-  ```
-  Script ini menggunakan [`http-server`](https://www.npmjs.com/package/http-server) untuk menyajikan konten dari direktori `dist`.
+## Struktur Project
 
-## Project Structure
-
-Proyek starter ini dirancang agar kode tetap modular dan terorganisir.
+Struktur direktori utama dalam proyek ini:
 
 ```text
-starter-project/
-├── dist/                   # Compiled files for production
-├── src/                    # Source project files
-│   ├── public/             # Public files
-│   ├── scripts/            # Source JavaScript files
-│   │   └── index.js        # Main JavaScript entry file
-│   ├── styles/             # Source CSS files
-│   │   └── styles.css      # Main CSS file
-│   └── index.html/         # Main HTML file
-├── package.json            # Project metadata and dependencies
-├── package-lock.json       # Project metadata and dependencies
-├── README.md               # Project documentation
-├── STUDENT.txt             # Student information
-├── webpack.common.js       # Webpack common configuration
-├── webpack.dev.js          # Webpack development configuration
-└── webpack.prod.js         # Webpack production configuration
-```
+frontend/
+├── dist/                   # Hasil kompilasi (Production ready)
+├── src/                    # Source code aplikasi
+│   ├── public/             # Aset statis (favicon, images)
+│   ├── scripts/            # Logika JavaScript utama
+│   │   ├── data/           # Integrasi API
+│   │   ├── globals/        # Variabel global & Config Endpoint
+│   │   ├── pages/          # Komponen Halaman (Views)
+│   │   │   ├── approval/   # Halaman Approval
+│   │   │   ├── auth/       # Login & Register
+│   │   │   ├── bapb/       # Fitur BAPB
+│   │   │   ├── bapp/       # Fitur BAPP
+│   │   │   ├── dashboard/  # Halaman Dashboard
+│   │   │   ├── document/   # Halaman Download
+│   │   │   └── payment/    # Halaman Pembayaran
+│   │   ├── routes/         # Konfigurasi Routing & URL Parser
+│   │   ├── utils/          # Fungsi bantuan (RBAC, API Helper)
+│   │   └── index.js        # Entry point aplikasi
+│   ├── styles/             # File CSS
+│   └── index.html          # Template HTML utama
+├── package.json            # Metadata project & scripts
+├── webpack.common.js       # Konfigurasi Webpack (Common)
+├── webpack.dev.js          # Konfigurasi Webpack (Development)
+└── webpack.prod.js         # Konfigurasi Webpack (Production)
